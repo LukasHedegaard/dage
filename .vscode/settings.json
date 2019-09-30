@@ -1,0 +1,5 @@
+{
+    "python.pythonPath": "/usr/local/anaconda3/envs/dat/bin/python",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
+}
