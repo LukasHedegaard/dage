@@ -12,7 +12,6 @@ def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 
-#was generate_tf_example
 def serialise_image(image, label):
     feature = {'label': _int64_feature(label),
                'image': _bytes_feature(tf.compat.as_bytes(image))}
@@ -29,10 +28,34 @@ def deserialise_image(serialised_example, shape):
         features=feature
     )
     image = tf.decode_raw(parsed_example['image'], tf.uint8)
-    parsed_example['image'] = tf.reshape(image, list(shape))
+    image = tf.reshape(image, list(shape))
+    parsed_example['image'] = image #preprocess_image(image, shape) 
     return parsed_example
+
+
+def preprocess_image(uint8image, shape):
+    # assuming shape is (*, *, 3)
+    channel_shape = [*shape[:2], 1]
+    imagenet_avg = [0.485, 0.456, 0.406]
+    imagenet_std = [0.229, 0.224, 0.225] #tf.constant([0.229, 0.224, 0.225])
+    avg = tf.concat([tf.fill(channel_shape, imgn_a) for imgn_a in imagenet_avg], axis=2)
+    std = tf.concat([tf.fill(channel_shape, imgn_s) for imgn_s in imagenet_std], axis=2)
+    
+    float_image = tf.cast(uint8image, tf.float32)
+    float_image.set_shape(list(shape))
+    float_image = float_image / 255.0
+    float_image = float_image - avg
+    float_image = float_image / std
+    return float_image #tf.cast(float_image, tf.uint8)
 
 
 def open_writer(file_path):
     opts = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
     return tf.python_io.TFRecordWriter(file_path, options=opts)
+
+
+def load_dataset(file_names, data_shape):
+    dataset = tf.data.TFRecordDataset(file_names, compression_type='GZIP')
+    dataset = dataset.map(lambda i: deserialise_image(i, data_shape))
+    dataset = dataset.map(lambda ex: (ex['image'], ex['label']))
+    return dataset

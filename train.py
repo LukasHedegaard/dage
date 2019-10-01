@@ -5,7 +5,7 @@ import shutil
 import numpy as np
 import argparse as ap
 import tensorflow as tf
-import tfrecord_util as tfr
+import data_util as tfr
 
 from os import path
 from glob import glob
@@ -71,8 +71,8 @@ def parse_args():
     parser.add_argument('--batch-size', '-b',
                         type=int,
                         required=False,
-                        default=16,
-                        help='Batch size. Default: 16')
+                        default=64,
+                        help='Batch size. Default: 64')
     parser.add_argument('--optimiser',
                         type=str,
                         required=False,
@@ -223,11 +223,9 @@ class ModelTrainer:
 
 
     def _load_dataset(self, split_name):
-        file_pattern = str(self.data_dir / self.source_dataset_name / split_name / '*.tfrecords')
+        file_pattern = str(self.data_dir / self.source_dataset_name / str(split_name+'.tfrecords'))
         file_names = glob(file_pattern)
-        dataset = tf.data.TFRecordDataset(file_names, compression_type='GZIP')
-        dataset = dataset.map(lambda i: tfr.deserialise_image(i, self.data_summary.data_shape))
-        dataset = dataset.map(lambda ex: (ex['image'], ex['label']))
+        dataset = tfr.load_dataset(file_names, self.data_summary.data_shape)
         return dataset
 
 
@@ -342,8 +340,8 @@ class ModelTrainer:
         else:
             print('Weights path "{}" not found!'.format(self.restore_weights_path))
 
-        training_set = self._load_dataset('train').take(self.batch_size * train_steps).repeat().shuffle(self.shuffle_buffer_size).batch(self.batch_size)
-        validation_set = self._load_dataset('validation').take(self.batch_size * validation_steps).repeat().batch(self.batch_size)
+        training_set = self._load_dataset('train').repeat().shuffle(self.shuffle_buffer_size).batch(self.batch_size)
+        validation_set = self._load_dataset('validation').repeat().batch(self.batch_size)
         test_set = self._load_dataset('test').batch(self.batch_size)
 
         model.fit(
