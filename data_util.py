@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-
+from PIL import Image
 
 def _int64_feature(value):
   return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
@@ -10,6 +10,13 @@ def _bytes_feature(value):
     if isinstance(value, type(tf.constant(0))):
         value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def read_image(image_path, shape):
+    image = Image.open(image_path)
+    image = image.resize(shape[:2])
+    image = np.array(image).tobytes()
+    return image 
 
 
 def serialise_image(image, label):
