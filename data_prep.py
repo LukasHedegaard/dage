@@ -23,7 +23,6 @@ TVT_SPLITS = {
     'validation' : 0.8 * 0.2
 }
 
-
 def all_paths_exist(path_list):
     return reduce( lambda lsum, p: lsum and os.path.exists(p), path_list, True)
 
