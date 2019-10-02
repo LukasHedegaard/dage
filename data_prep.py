@@ -17,11 +17,14 @@ IMG_SHAPE = [227, 227, 3] # [IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH]
 SOURCE_SAMPLES_PER_DATASET = { 'amazon': 20, 'dslr': 8, 'webcam': 8 }
 TARGET_SAMPLES_PER_DATASET = { 'amazon': 3, 'dslr': 3, 'webcam': 3 }
 DIRNAME = 'data'
+<<<<<<< HEAD
 TVT_SPLITS = {
     'test' : 0.2,
     'train' : 0.8 * 0.8,
     'validation' : 0.8 * 0.2
 }
+=======
+>>>>>>> dd488fa5e7392cdc817790cd3df4e676f74b813d
 
 
 def all_paths_exist(path_list):
@@ -51,7 +54,11 @@ def get_sample_label_and_path_by_split(source_dir_path):
         random.shuffle(class_sample_paths)
         num_total = len(class_sample_paths)
 
+<<<<<<< HEAD
         class_splits = { name: round(num_total * fraction) for (name, fraction) in TVT_SPLITS.items() }
+=======
+        class_splits = { name: round(num_total * fraction) for (name, fraction) in SPLITS.items() }
+>>>>>>> dd488fa5e7392cdc817790cd3df4e676f74b813d
         class_splits['validation'] += num_total - sum(class_splits.values()) # rounding may result in missing or additional samples
         
         for (split_name, split_num_samples) in class_splits.items():
