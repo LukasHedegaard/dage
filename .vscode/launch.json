@@ -5,12 +5,43 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python: Tune Source",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "args": ["--method", "tune_source"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Tune Both",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "args": ["--method", "tune_both"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Domain Adaption using CCSA",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "args": ["--method", "ccsa"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Domain Adaption using d-SNE",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "args": ["--method", "dsne"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Current File (Integrated Terminal)",
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal",
-            "args": ["--model-config", "baseline_no_transfer"]
+            "console": "integratedTerminal"
         }
     ]
 }
