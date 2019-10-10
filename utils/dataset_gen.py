@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
 from pathlib import Path
-from typing import List, Union, Optional, Dict
+from typing import List, Union, Optional, Dict, Tuple
 import random
 from functools import lru_cache
 import itertools
@@ -31,7 +31,7 @@ def dataset_from_paths(
     return labeled_ds
 
 
-def prep_for_training(dataset: Dataset, batch_size=16, cache=True, shuffle_buffer_size=1000):
+def prep_train(dataset: Dataset, batch_size=16, cache=True, shuffle_buffer_size=1000):
     # This is a small dataset, only load it once, and keep it in memory. Use `.cache(filename)` to cache preprocessing work for datasets that don't fit in memory.
     if cache:
         if isinstance(cache, str):
@@ -45,7 +45,7 @@ def prep_for_training(dataset: Dataset, batch_size=16, cache=True, shuffle_buffe
     return dataset
 
 
-def prep_for_test(dataset: Dataset, batch_size=16, cache:str=''):
+def prep_test(dataset: Dataset, batch_size=16, cache:str=''):
     if cache:
         if isinstance(cache, str):
             dataset = dataset.cache(cache)
@@ -63,7 +63,7 @@ def dataset_from_dir(
 ) -> Dataset :
     dir_path = Path(dir_path)
     data_paths = [str(p) for p in dir_path.glob('*/*.jpg')]
-    return dataset_from_paths(data_paths, img_size, seed)
+    return dataset_from_paths(data_paths, img_size, seed), len(data_paths)
 
 
 def balanced_dataset_split_from_dir(
@@ -71,7 +71,7 @@ def balanced_dataset_split_from_dir(
     samples_per_class: int,
     img_size=[224,224], 
     seed=1
-) -> Dataset:
+) -> Tuple[Dataset, Dataset, int, int]:
     sampled_dataset, rest_dataset = [], []
     dir_path = Path(dir_path)
     class_paths = dir_path.glob('*')
@@ -84,7 +84,9 @@ def balanced_dataset_split_from_dir(
 
     return ( 
         dataset_from_paths(sampled_dataset, img_size, seed), 
-        dataset_from_paths(rest_dataset, img_size, seed) 
+        dataset_from_paths(rest_dataset, img_size, seed), 
+        len(sampled_dataset),
+        len(rest_dataset),
     )
              
 
@@ -93,7 +95,11 @@ def office31_datasets(
     target_name: str, 
     img_size=[224,224], 
     seed=1
-) -> Dict[str, Dict[str, Dataset]]:
+) -> Dict[str, Dict[str, Dict[str, Tuple[Dataset, int]]]]:
+    ''' Create the datasets needed for evaluating the Office31 dataset
+    Returns:
+        Dictionary of ['source'|'target'] ['full'|'train'|'test'] ['ds'|'size']
+    '''
     name_mapping = {
         'A' : 'amazon',
         'D' : 'dslr',
@@ -118,25 +124,25 @@ def office31_datasets(
     source_data_path = project_base_path / dataset_configs[source_name]['path']
     target_data_path = project_base_path / dataset_configs[target_name]['path']
 
-    s_full          =                dataset_from_dir(source_data_path, img_size, seed)
-    s_sampled, _    = balanced_dataset_split_from_dir(source_data_path, n_source_samples, img_size, seed)
-    t_train, t_test = balanced_dataset_split_from_dir(target_data_path, n_target_samples, img_size, seed)
+    s_full, s_full_size                        = dataset_from_dir(source_data_path, img_size, seed)
+    s_train, _,      s_train_size, _           = balanced_dataset_split_from_dir(source_data_path, n_source_samples, img_size, seed)
+    t_train, t_test, t_train_size, t_test_size = balanced_dataset_split_from_dir(target_data_path, n_target_samples, img_size, seed)
 
     return {
         'source': {
-            'full': s_full,
-            'train': s_sampled
+            'full': { 'ds': s_full, 'size': s_full_size },
+            'train': { 'ds': s_train, 'size': s_train_size},
         },
         'target': {
-            'train': t_train,
-            'test': t_test
+            'train': { 'ds': t_train, 'size': t_train_size},
+            'test': { 'ds': t_test, 'size': t_test_size},
         },
     }
 
-@lru_cache(maxsize = 1)
+
 def office31_class_names() -> List[str]:
     data_dir = Path(__file__).parent.parent / 'datasets' / 'Office31' / 'amazon' / 'images'
-    return sorted([item.name for item in data_dir.glob('*')])
+    return sorted([item.name for item in data_dir.glob('*') if item.is_dir()])
 
 
 @lru_cache(maxsize = 1)
@@ -145,9 +151,10 @@ def da_combi_dataset(
     target_ds,
     ratio:Optional[float]=None,
     shuffle_buffer_size=1000
-) -> Dataset:
-    ''' Create positive and negative pairs from source and target datasets 
+) -> Tuple[Dataset, int]:
+    ''' Create a combined dataset of positive and negative pairs from source and target datasets.
         NB: This has not been optimized for large datasets!
+        @returns: the combined dataset and its size
     '''
     source_ds = source_ds.shuffle(buffer_size=shuffle_buffer_size)
     target_ds = target_ds.shuffle(buffer_size=shuffle_buffer_size)
@@ -168,14 +175,12 @@ def da_combi_dataset(
         neg = tot - pos
         return pos, neg
 
+    n_pos, n_neg = count_pair_types(source_ds, target_ds)
+    target_neg = round(n_pos*ratio)
+    size_ds = n_pos + min(n_neg, target_neg)
+
     def gen_ratio():
-        if not ratio:
-            return gen_all
-
-        pos, neg = count_pair_types(source_ds, target_ds)
-        target_neg = round(pos*ratio)
-
-        if target_neg > neg:
+        if not ratio or target_neg > n_neg:
             return gen_all
 
         neg_left = target_neg
@@ -191,7 +196,7 @@ def da_combi_dataset(
     shapes = (*source_ds.output_shapes, *target_ds.output_shapes, tf.compat.v2.TensorShape([]))
     types = (*source_ds.output_types, *target_ds.output_types, tf.bool)
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes).shuffle(buffer_size=shuffle_buffer_size)
-    return mix_ds
+    return mix_ds, size_ds
 
 
 # leftovers from dev testing
