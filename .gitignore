@@ -1,7 +1,9 @@
-# Data
-data
+# Datasets and results
+datasets
 runs
 
+# Code editor related files
+.vscode/settings.json
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
@@ -108,3 +110,4 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
