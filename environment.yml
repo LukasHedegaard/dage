@@ -1,15 +1,14 @@
-name: dat
+name: da
 channels:
   - defaults
   - conda-forge
 dependencies:
   - python=3.6
+  - tensorflow=1.14.0
   - numpy
   - scikit-learn
   - pandas
   - seaborn
   - matplotlib
   - jupyterlab
-  - tensorflow=1.13.1
-  - docopt=0.6.2
-  - pyarrow=0.12.1
+  - tqdm
