@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Evaluate untrained",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "args": ["--mode", "test"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Tune Source",
             "type": "python",
             "request": "launch",
