@@ -3,11 +3,6 @@ import argparse
 def parse_args():
      parser = argparse.ArgumentParser(description='Perform Supervised Domain Adaption')
 
-     # os
-     os_parser = parser.add_argument_group(description='OS')
-     os_parser.add_argument('--checkpoints_dir', type=str, default='checkpoints', help='Checkpoint directory')
-     os_parser.add_argument('--logs_dir', type=str, default='logs', help='Logs directory')
-
      # model
      model_parser = parser.add_argument_group(description='Model')
      model_parser.add_argument('--model_base', type=str, default='vgg16', help='Feature extractor for model. Default: vgg16')
@@ -32,6 +27,7 @@ def parse_args():
                                         'train_and_test: perform training and testing')
      train_parser.add_argument('--ratio', type=float, default=None, help='Ratio of negative to positive pairs for domain adaption')
      train_parser.add_argument('--shuffle_buffer_size', type=int, default=1000, help='Size of buffer used for shuffling')
+     train_parser.add_argument('--verbose', type=int, default=1, help='Verbosity of training and evaluation')
 
      # optimizer
      optim_parser = parser.add_argument_group(description='Optimization')
