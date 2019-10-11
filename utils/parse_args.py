@@ -3,6 +3,9 @@ import argparse
 def parse_args():
      parser = argparse.ArgumentParser(description='Perform Supervised Domain Adaption')
 
+     os_parser = parser.add_argument_group(description='OS')
+     os_parser.add_argument('--gpu_id', type=str, default='0', help='Which GPU to use. Default: 0')
+     
      # model
      model_parser = parser.add_argument_group(description='Model')
      model_parser.add_argument('--model_base', type=str, default='vgg16', help='Feature extractor for model. Default: vgg16')
@@ -17,7 +20,7 @@ def parse_args():
                                    'dsne: modified-Hausdorffian distance loss')
      train_parser.add_argument('--source', type=str, default='A', help='Source domain')
      train_parser.add_argument('--target', type=str, default='D', help='Target domain')
-     train_parser.add_argument('--batch-size', '-b', type=int, default=128, help='Batch size. Default: 128')
+     train_parser.add_argument('--batch-size', '-b', type=int, default=16, help='Batch size. Default: 16')
      train_parser.add_argument('--epochs', '-e', type=int, default=10, help='Number of epochs. Default: 10')
      train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
      train_parser.add_argument('--mode', type=str, default='train_and_test', 

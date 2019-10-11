@@ -12,7 +12,21 @@ from sklearn.metrics import classification_report
 import json
 
 
+def setup_gpu(gpu_id):
+    from tensorflow.compat.v1 import ConfigProto
+    from tensorflow.compat.v1 import InteractiveSession
+
+    os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_id)
+    if args.verbose:
+        print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+
+    config = ConfigProto()
+    config.gpu_options.allow_growth = True
+    session = InteractiveSession(config=config)
+
+
 def main(args):
+    setup_gpu(args.gpu_id)
 
     # documentation setup
     outputs_dir = Path(__file__).parent / 'runs' / '{}_{}_{}_{}'.format( datetime.now().strftime("%Y%m%d%H%M%S"), args.source, args.target, args.method )
@@ -81,7 +95,7 @@ def main(args):
     # train callbacks
     checkpoint_cb = keras.callbacks.ModelCheckpoint(
         str(checkpoints_dir / 'checkpoint.hdf5'),
-        monitor='accuracy',
+        monitor='acc',
         save_best_only=True,
         save_weights_only=True,
         mode='auto',
