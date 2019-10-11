@@ -1,6 +1,6 @@
 import os
 import tensorflow as tf
-# tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 keras = tf.compat.v2.keras
 from utils.parse_args import parse_args
 import utils.dataset_gen as dsgen
@@ -121,7 +121,7 @@ def main(args):
                 # pred_file_path=pred_file_path,
                 report_path=report_path,
                 verbose=args.verbose,
-                labels=CLASS_NAMES,
+                target_names=CLASS_NAMES,
             )
 
 if __name__ == '__main__':
