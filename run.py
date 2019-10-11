@@ -1,14 +1,36 @@
+import os
+import tensorflow as tf
+# tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+keras = tf.compat.v2.keras
 from utils.parse_args import parse_args
 import utils.dataset_gen as dsgen
+from utils.evaluation import evaluate
 import models
-import tensorflow as tf
-keras = tf.compat.v2.keras
+from datetime import datetime
+from pathlib import Path
+from sklearn.metrics import classification_report
+import json
+
 
 def main(args):
 
+    # documentation setup
+    outputs_dir = Path(__file__).parent / 'runs' / '{}_{}_{}_{}'.format( datetime.now().strftime("%Y%m%d%H%M%S"), args.source, args.target, args.method )
+    checkpoints_dir = outputs_dir / 'checkpoints'
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
+    tensorboard_dir = outputs_dir / 'logs'
+    tensorboard_dir.mkdir(parents=True, exist_ok=True)
+    config_path = outputs_dir / 'config.json'
+    # pred_file_path = outputs_dir / 'predictions.csv'
+    report_path = outputs_dir / 'report.txt'
+
+    with open(config_path, 'w') as f:
+        json.dump(args.__dict__, f, indent=4)
+
     # data
     INPUT_SHAPE = (224, 224, 3)
-    OUTPUT_SHAPE = len(dsgen.office31_class_names())
+    CLASS_NAMES = dsgen.office31_class_names()
+    OUTPUT_SHAPE = len(CLASS_NAMES)
 
     ds = dsgen.office31_datasets( source_name=args.source, target_name=args.target, img_size=INPUT_SHAPE[:2], seed=args.seed)
 
@@ -50,15 +72,43 @@ def main(args):
 
     model.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
 
+    # train callbacks
+    checkpoint_cb = keras.callbacks.ModelCheckpoint(
+        str(checkpoints_dir / 'checkpoint.hdf5'),
+        monitor='accuracy',
+        save_best_only=True,
+        save_weights_only=True,
+        mode='auto',
+        period=5,  # Save weights, every 5 epoch.
+        verbose=args.verbose
+    )
+
+    tensorboard_cb = keras.callbacks.TensorBoard(log_dir=tensorboard_dir)
+
     # perform training and test
     if 'train' in args.mode:
         for x, s in train_ds:
-            model.fit( x=x, epochs=args.epochs, steps_per_epoch=s//args.batch_size, validation_split=0.0, verbose=1 )
+            model.fit( x=x, 
+                epochs=args.epochs, 
+                steps_per_epoch=s//args.batch_size, 
+                validation_split=0.0, 
+                callbacks=[checkpoint_cb, tensorboard_cb],
+                verbose=args.verbose,
+            )
 
     if 'test' in args.mode:
         for x, s in test_ds:
-            model.evaluate(x, steps=s//args.batch_size, verbose=0)
-
+            # model.evaluate(x, steps=s//args.batch_size, verbose=args.verbose)
+            evaluate(
+                model=model,
+                test_dataset=x,
+                test_size=s,
+                batch_size=args.batch_size,
+                # pred_file_path=pred_file_path,
+                report_path=report_path,
+                verbose=args.verbose,
+                labels=CLASS_NAMES,
+            )
 
 if __name__ == '__main__':
     args = parse_args()
