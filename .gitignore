@@ -1,6 +1,7 @@
 # Datasets and results
 datasets
 runs
+wget-log
 
 # Code editor related files
 .vscode/settings.json
