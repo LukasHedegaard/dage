@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
 from pathlib import Path
-from typing import List, Union, Optional, Dict, Tuple
+from typing import List, Union, Optional, Dict, Tuple, Callable
 import random
 from functools import lru_cache
 import itertools
@@ -12,8 +12,9 @@ Dataset = tf.compat.v2.data.Dataset
 
 def dataset_from_paths(
     data_paths: List[str],
+    preprocess_input:Callable=None,
     img_size=[224,224], 
-    seed=1
+    seed=1,
 ):
     list_ds = Dataset.list_files(data_paths, shuffle=True, seed=seed)
     CLASS_NAMES = tf.constant(sorted(list(set([p.split('/')[-2] for p in data_paths]))))
@@ -24,6 +25,8 @@ def dataset_from_paths(
         img = tf.compat.v2.io.read_file(file_path) # load the raw data from the file as a string
         img = tf.compat.v2.image.decode_jpeg(img, channels=3) # convert the compressed string to a 3D uint8 tensor
         img = tf.compat.v2.image.convert_image_dtype(img, tf.float32) # Use `convert_image_dtype` to convert to floats in the [0,1] range.
+        if preprocess_input:
+            img = preprocess_input(img*255) # preprocess input assumes input in [0,255] range.
         img = tf.compat.v2.image.resize(img, img_size) # resize the image to the desired size.
         return img, label
 
@@ -58,17 +61,19 @@ def prep_test(dataset: Dataset, batch_size=16, cache:str=''):
 
 def dataset_from_dir(
     dir_path: Union[str, Path],
+    preprocess_input:Callable=None,
     img_size=[224,224], 
     seed=1
 ) -> Dataset :
     dir_path = Path(dir_path)
     data_paths = [str(p) for p in dir_path.glob('*/*.jpg')]
-    return dataset_from_paths(data_paths, img_size, seed), len(data_paths)
+    return dataset_from_paths(data_paths, preprocess_input, img_size, seed), len(data_paths)
 
 
 def balanced_dataset_split_from_dir(
     dir_path: Union[str, Path],
     samples_per_class: int,
+    preprocess_input:Callable=None,
     img_size=[224,224], 
     seed=1
 ) -> Tuple[Dataset, Dataset, int, int]:
@@ -83,8 +88,8 @@ def balanced_dataset_split_from_dir(
         rest_dataset.extend(tmp[samples_per_class:])
 
     return ( 
-        dataset_from_paths(sampled_dataset, img_size, seed), 
-        dataset_from_paths(rest_dataset, img_size, seed), 
+        dataset_from_paths(sampled_dataset, preprocess_input, img_size, seed), 
+        dataset_from_paths(rest_dataset, preprocess_input, img_size, seed), 
         len(sampled_dataset),
         len(rest_dataset),
     )
@@ -93,6 +98,7 @@ def balanced_dataset_split_from_dir(
 def office31_datasets(
     source_name: str, 
     target_name: str, 
+    preprocess_input:Callable=None,
     img_size=[224,224], 
     seed=1
 ) -> Dict[str, Dict[str, Dict[str, Tuple[Dataset, int]]]]:
@@ -124,9 +130,9 @@ def office31_datasets(
     source_data_path = project_base_path / dataset_configs[source_name]['path']
     target_data_path = project_base_path / dataset_configs[target_name]['path']
 
-    s_full, s_full_size                        = dataset_from_dir(source_data_path, img_size, seed)
-    s_train, _,      s_train_size, _           = balanced_dataset_split_from_dir(source_data_path, n_source_samples, img_size, seed)
-    t_train, t_test, t_train_size, t_test_size = balanced_dataset_split_from_dir(target_data_path, n_target_samples, img_size, seed)
+    s_full, s_full_size                        = dataset_from_dir(source_data_path, preprocess_input, img_size, seed)
+    s_train, _,      s_train_size, _           = balanced_dataset_split_from_dir(source_data_path, n_source_samples, preprocess_input, img_size, seed)
+    t_train, t_test, t_train_size, t_test_size = balanced_dataset_split_from_dir(target_data_path, n_target_samples, preprocess_input, img_size, seed)
 
     return {
         'source': {

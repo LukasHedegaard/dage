@@ -32,7 +32,13 @@ def main(args):
     CLASS_NAMES = dsgen.office31_class_names()
     OUTPUT_SHAPE = len(CLASS_NAMES)
 
-    ds = dsgen.office31_datasets( source_name=args.source, target_name=args.target, img_size=INPUT_SHAPE[:2], seed=args.seed)
+    # preprocessing
+    preprocess_input = {
+        'vgg16'      : lambda: lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
+        'resnet50'   : lambda: lambda x: keras.applications.resnet50.preprocess_input(x, mode='tf'),
+    }[args.model_base]()
+
+    ds = dsgen.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, img_size=INPUT_SHAPE[:2], seed=args.seed)
 
     test_ds = [ ds['target']['test'] ]
 
