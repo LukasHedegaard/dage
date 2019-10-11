@@ -6,6 +6,7 @@ from utils.parse_args import parse_args
 import utils.dataset_gen as dsgen
 from utils.evaluation import evaluate
 import models
+import utils.callbacks as callbacks
 from datetime import datetime
 from pathlib import Path
 from sklearn.metrics import classification_report
@@ -48,16 +49,16 @@ def main(args):
 
     # preprocessing
     preprocess_input = {
-        'vgg16'      : lambda: lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
-        'resnet50'   : lambda: lambda x: keras.applications.resnet50.preprocess_input(x, mode='tf'),
-    }[args.model_base]()
+        'vgg16'      : lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
+        'resnet50'   : lambda x: keras.applications.resnet50.preprocess_input(x, mode='tf'),
+    }[args.model_base] or None
 
     ds = dsgen.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, img_size=INPUT_SHAPE[:2], seed=args.seed)
 
     test_ds = [ ds['target']['test'] ]
 
     train_ds = {
-        'tune_source': lambda: [ ds['source']['full']],
+        'tune_source': lambda: [ ds['source']['full'] ],
         'tune_both'  : lambda: [ ds['source']['full'], ds['target']['train'] ],
         'ccsa'       : lambda: [ dsgen.da_combi_dataset(source_ds=ds['source']['train']['ds'], 
                                                         target_ds=ds['target']['train']['ds'], 
@@ -79,42 +80,35 @@ def main(args):
     }[args.model_base]()
 
     model, loss = {
-        'tune_source': lambda: ( models.classic(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
-        'tune_both'  : lambda: ( models.classic(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
+        # 'tune_source': lambda: ( models.simple(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
+        'tune_source': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
+        'tune_both'  : lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
         # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
     }[args.method]()
 
     optimizer = {
-        'sgd' : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=False),
-        'adam': lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False)
+        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=False),
+        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False),
+        'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate),
     }[args.optimizer]()
 
     model.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
 
-    # train callbacks
-    checkpoint_cb = keras.callbacks.ModelCheckpoint(
-        str(checkpoints_dir / 'checkpoint.hdf5'),
-        monitor='acc',
-        save_best_only=True,
-        save_weights_only=True,
-        mode='auto',
-        period=5,  # Save weights, every 5 epoch.
-        verbose=args.verbose
-    )
+    fit_callbacks = callbacks.all(checkpoints_dir, tensorboard_dir, args.verbose)
+    
+    model_train = {
+        'tune_source': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+        # 'tune_both': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+        # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
+        # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
+    }[args.method]
 
-    tensorboard_cb = keras.callbacks.TensorBoard(log_dir=tensorboard_dir)
 
     # perform training and test
     if 'train' in args.mode:
         for x, s in train_ds:
-            model.fit( x=x, 
-                epochs=args.epochs, 
-                steps_per_epoch=s//args.batch_size, 
-                validation_split=0.0, 
-                callbacks=[checkpoint_cb, tensorboard_cb],
-                verbose=args.verbose,
-            )
+            model_train(x,s)
 
     if 'test' in args.mode:
         for x, s in test_ds:
