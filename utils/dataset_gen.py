@@ -116,7 +116,7 @@ def balanced_dataset_tvt_split_from_dir(
 
     return ( 
         dataset_from_paths(train_dataset, preprocess_input, img_size, seed), 
-        dataset_from_paths(test_dataset, preprocess_input, img_size, seed), 
+        dataset_from_paths(val_dataset, preprocess_input, img_size, seed), 
         dataset_from_paths(test_dataset, preprocess_input, img_size, seed), 
         len(train_dataset),
         len(val_dataset),
