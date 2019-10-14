@@ -27,7 +27,8 @@ def setup_gpu(gpu_id):
 
 
 def main(args):
-    setup_gpu(args.gpu_id)
+    if args.gpu_id:
+        setup_gpu(args.gpu_id)
 
     # documentation setup
     outputs_dir = Path(__file__).parent / 'runs' / '{}_{}_{}_{}'.format( datetime.now().strftime("%Y%m%d%H%M%S"), args.source, args.target, args.method )
