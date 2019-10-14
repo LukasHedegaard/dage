@@ -37,8 +37,9 @@ def main(args):
     tensorboard_dir = outputs_dir / 'logs'
     tensorboard_dir.mkdir(parents=True, exist_ok=True)
     config_path = outputs_dir / 'config.json'
+    model_path = outputs_dir / 'model.json'
     # pred_file_path = outputs_dir / 'predictions.csv'
-    report_path = outputs_dir / 'report.txt'
+    report_path = outputs_dir / 'report.json'
 
     with open(config_path, 'w') as f:
         json.dump(args.__dict__, f, indent=4)
@@ -99,8 +100,12 @@ def main(args):
         model.load_weights(str(weights_path))
 
     model.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
+
     if args.verbose:
         model.summary()
+
+    with open(model_path, 'w') as f:
+        f.write(model.to_json())
 
     fit_callbacks = callbacks.all(checkpoints_dir, tensorboard_dir, monitor='val_loss', verbose=args.verbose)
     
