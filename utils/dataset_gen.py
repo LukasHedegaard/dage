@@ -93,6 +93,35 @@ def balanced_dataset_split_from_dir(
         len(sampled_dataset),
         len(rest_dataset),
     )
+
+
+def balanced_dataset_tvt_split_from_dir(
+    dir_path: Union[str, Path],
+    samples_per_train_class: int,
+    samples_per_val_class: int,
+    preprocess_input:Callable=None,
+    img_size=[224,224], 
+    seed=1
+) -> Tuple[Dataset, Dataset, int, int]:
+    train_dataset, val_dataset, test_dataset = [], [], []
+    dir_path = Path(dir_path)
+    class_paths = dir_path.glob('*')
+    for class_path in class_paths:
+        tmp = [str(p) for p in class_path.glob('*.jpg')] 
+        random.seed(seed)
+        random.shuffle(tmp)
+        train_dataset.extend(tmp[:samples_per_train_class])
+        val_dataset.extend(tmp[samples_per_train_class:samples_per_train_class+samples_per_val_class])
+        test_dataset.extend(tmp[samples_per_train_class+samples_per_val_class:])
+
+    return ( 
+        dataset_from_paths(train_dataset, preprocess_input, img_size, seed), 
+        dataset_from_paths(test_dataset, preprocess_input, img_size, seed), 
+        dataset_from_paths(test_dataset, preprocess_input, img_size, seed), 
+        len(train_dataset),
+        len(val_dataset),
+        len(test_dataset),
+    )
              
 
 def office31_datasets(
@@ -125,14 +154,16 @@ def office31_datasets(
 
     n_source_samples = dataset_configs[source_name]['source_samples']
     n_target_samples = dataset_configs[target_name]['target_samples']
+    n_target_val_samples = dataset_configs[target_name]['target_val_samples']
 
     project_base_path = Path(__file__).parent.parent
     source_data_path = project_base_path / dataset_configs[source_name]['path']
     target_data_path = project_base_path / dataset_configs[target_name]['path']
 
-    s_full, s_full_size                        = dataset_from_dir(source_data_path, preprocess_input, img_size, seed)
-    s_train, _,      s_train_size, _           = balanced_dataset_split_from_dir(source_data_path, n_source_samples, preprocess_input, img_size, seed)
-    t_train, t_test, t_train_size, t_test_size = balanced_dataset_split_from_dir(target_data_path, n_target_samples, preprocess_input, img_size, seed)
+    s_full, s_full_size         = dataset_from_dir(source_data_path, preprocess_input, img_size, seed)
+    s_train, _, s_train_size, _ = balanced_dataset_split_from_dir(source_data_path, n_source_samples, preprocess_input, img_size, seed)
+    t_train, t_val, t_test, t_train_size, t_val_size, t_test_size \
+        = balanced_dataset_tvt_split_from_dir(target_data_path, n_target_samples, n_target_val_samples, preprocess_input, img_size, seed)
 
     return {
         'source': {
@@ -141,6 +172,7 @@ def office31_datasets(
         },
         'target': {
             'train': { 'ds': t_train, 'size': t_train_size},
+            'val': { 'ds': t_val, 'size': t_val_size},
             'test': { 'ds': t_test, 'size': t_test_size},
         },
     }

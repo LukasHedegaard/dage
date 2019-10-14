@@ -2,16 +2,19 @@
     "amazon": {
         "path": "datasets/Office31/amazon/images",
         "source_samples": 20,
-        "target_samples": 3
+        "target_samples": 3,
+        "target_val_samples": 2
     },
     "dslr": {
         "path": "datasets/Office31/dslr/images",
         "source_samples": 8,
-        "target_samples": 3
+        "target_samples": 3,
+        "target_val_samples": 2
     },
     "webcam": {
         "path": "datasets/Office31/webcam/images",
         "source_samples": 8,
-        "target_samples": 3
+        "target_samples": 3,
+        "target_val_samples": 2
     }
 }
