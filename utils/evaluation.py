@@ -1,5 +1,6 @@
 from pathlib import Path
 from sklearn.metrics import classification_report
+import json
 import tensorflow as tf
 keras = tf.compat.v2.keras
 Dataset = tf.compat.v2.data.Dataset
@@ -35,8 +36,11 @@ def evaluate(
             progbar.add(1)
 
     if verbose:
-        print('Creating classification report {}'.format(report_path))
+        print('Creating classification report at {}'.format(report_path))    
+        print(classification_report(y_true=y_true, y_pred=y_pred, target_names=target_names, digits=4, output_dict=False))
+    
+    cr = classification_report(y_true=y_true, y_pred=y_pred, target_names=target_names, digits=4, output_dict=True)
+    
+    with open(report_path, 'w') as f:    
+        json.dump(cr, f, indent=4)
         
-    with open(report_path, 'w') as file:
-        file.write('# Classification Report\n')
-        file.write(classification_report(y_true=y_true, y_pred=y_pred, target_names=target_names, digits=4))
