@@ -56,7 +56,7 @@ def main(args):
     ds = dsgen.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, img_size=INPUT_SHAPE[:2], seed=args.seed)
 
     test_ds = [ ds['target']['test'] ]
-
+    val_ds =  [ ds['target']['val'] ]
     train_ds = {
         'tune_source': lambda: [ ds['source']['full'] ],
         'tune_both'  : lambda: [ ds['source']['full'], ds['target']['train'] ],
@@ -70,7 +70,8 @@ def main(args):
                                                         shuffle_buffer_size=args.shuffle_buffer_size) ],
     }[args.method]()
 
-    test_ds  = list(map(lambda d: ( dsgen.prep_test(dataset=d['ds'], batch_size=args.batch_size) , d['size']), test_ds  ))
+    test_ds  = list(map(lambda d: ( dsgen.prep_test(dataset=d['ds'], batch_size=args.batch_size) , d['size']), test_ds ))
+    val_ds   = list(map(lambda d: ( dsgen.prep_test(dataset=d['ds'], batch_size=args.batch_size) , d['size']), val_ds ))[0]
     train_ds = list(map(lambda d: ( dsgen.prep_train(dataset=d['ds'], batch_size=args.batch_size) , d['size']), train_ds ))
 
     # model
@@ -101,10 +102,10 @@ def main(args):
     if args.verbose:
         model.summary()
 
-    fit_callbacks = callbacks.all(checkpoints_dir, tensorboard_dir, args.verbose)
+    fit_callbacks = callbacks.all(checkpoints_dir, tensorboard_dir, monitor='val_loss', verbose=args.verbose)
     
     train = {
-        'tune_source': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+        'tune_source': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         # 'tune_both': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),

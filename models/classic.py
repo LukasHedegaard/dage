@@ -50,17 +50,31 @@ def trainable(model):
     return model
 
 
-def train(model, datasource, datasource_size, epochs, batch_size, callbacks, verbose):
+def train(
+    model, 
+    datasource, 
+    datasource_size, 
+    epochs, 
+    batch_size, 
+    callbacks, 
+    verbose=1, 
+    val_datasource=None, 
+    val_datasource_size=None 
+):
     ''' fine-tuning procedure
     '''
+    validation_steps = val_datasource_size//batch_size if val_datasource_size else None
+
     if verbose:
         print('Training top only')
     model = trainable_top(model)
     model.compile(loss=model.loss, optimizer=model.optimizer, metrics=model.metrics)
     model.fit( 
         x=datasource, 
+        validation_data=val_datasource,
         epochs=epochs//3, 
         steps_per_epoch=datasource_size//batch_size, 
+        validation_steps=validation_steps,
         callbacks=callbacks,
         verbose=verbose,
     )
@@ -70,8 +84,10 @@ def train(model, datasource, datasource_size, epochs, batch_size, callbacks, ver
     model.compile(loss=model.loss, optimizer=model.optimizer, metrics=model.metrics)
     model.fit( 
         x=datasource, 
+        validation_data=val_datasource,
         epochs=epochs//3, 
         steps_per_epoch=datasource_size//batch_size, 
+        validation_steps=validation_steps,
         callbacks=callbacks,
         verbose=verbose,
     )
@@ -81,8 +97,10 @@ def train(model, datasource, datasource_size, epochs, batch_size, callbacks, ver
     model.compile(loss=model.loss, optimizer=model.optimizer, metrics=model.metrics)
     model.fit( 
         x=datasource, 
+        validation_data=val_datasource,
         epochs=epochs//3, 
         steps_per_epoch=datasource_size//batch_size, 
+        validation_steps=validation_steps,
         callbacks=callbacks,
         verbose=verbose,
     )
