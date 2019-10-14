@@ -47,7 +47,6 @@ def main(args):
     CLASS_NAMES = dsgen.office31_class_names()
     OUTPUT_SHAPE = len(CLASS_NAMES)
 
-    # preprocessing
     preprocess_input = {
         'vgg16'      : lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
         'resnet50'   : lambda x: keras.applications.resnet50.preprocess_input(x, mode='tf'),
@@ -93,11 +92,17 @@ def main(args):
         'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate),
     }[args.optimizer]()
 
+    if args.from_weights:
+        weights_path = args.from_weights
+        model.load_weights(str(weights_path))
+
     model.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
+    if args.verbose:
+        model.summary()
 
     fit_callbacks = callbacks.all(checkpoints_dir, tensorboard_dir, args.verbose)
     
-    model_train = {
+    train = {
         'tune_source': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         # 'tune_both': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
@@ -108,21 +113,12 @@ def main(args):
     # perform training and test
     if 'train' in args.mode:
         for x, s in train_ds:
-            model_train(x,s)
+            train(x,s)
 
     if 'test' in args.mode:
         for x, s in test_ds:
             # model.evaluate(x, steps=s//args.batch_size, verbose=args.verbose)
-            evaluate(
-                model=model,
-                test_dataset=x,
-                test_size=s,
-                batch_size=args.batch_size,
-                # pred_file_path=pred_file_path,
-                report_path=report_path,
-                verbose=args.verbose,
-                target_names=CLASS_NAMES,
-            )
+            evaluate( model=model, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
 
 if __name__ == '__main__':
     args = parse_args()

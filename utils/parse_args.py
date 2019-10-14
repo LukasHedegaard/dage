@@ -9,6 +9,7 @@ def parse_args():
      # model
      model_parser = parser.add_argument_group(description='Model')
      model_parser.add_argument('--model_base', type=str, default='vgg16', help='Feature extractor for model. Default: vgg16')
+     model_parser.add_argument('--from_weights', type=str, default=None, help='Path to pretrained model weights')
      
      # train
      train_parser = parser.add_argument_group(description='Training')

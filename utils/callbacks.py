@@ -3,7 +3,7 @@ keras = tf.compat.v2.keras
 
 def checkpoint(checkpoints_dir, verbose=True):
     return keras.callbacks.ModelCheckpoint(
-        str(checkpoints_dir / 'checkpoint.hdf5'),
+        filepath=str(checkpoints_dir / 'cp-{epoch:003d}.ckpt'),
         monitor='loss',
         save_best_only=True,
         save_weights_only=True,
