@@ -39,4 +39,4 @@ def evaluate(
         
     with open(report_path, 'w') as file:
         file.write('# Classification Report\n')
-        file.write(classification_report(y_true=y_true, y_pred=y_pred, target_names=target_names))
+        file.write(classification_report(y_true=y_true, y_pred=y_pred, target_names=target_names, digits=4))
