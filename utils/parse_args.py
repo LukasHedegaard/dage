@@ -21,7 +21,7 @@ def parse_args():
                                    'dsne: modified-Hausdorffian distance loss')
      train_parser.add_argument('--source', type=str, default='A', help='Source domain')
      train_parser.add_argument('--target', type=str, default='D', help='Target domain')
-     train_parser.add_argument('--batch-size', '-b', type=int, default=8, help='Batch size. Default: 8')
+     train_parser.add_argument('--batch-size', '-b', type=int, default=16, help='Batch size. Default: 16')
      train_parser.add_argument('--epochs', '-e', type=int, default=10, help='Number of epochs. Default: 10')
      train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
      train_parser.add_argument('--mode', type=str, default='train_and_test', 
