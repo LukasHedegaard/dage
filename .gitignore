@@ -1,6 +1,7 @@
 # Datasets and results
 datasets
-runs
+logs
+checkpoints
 wget-log
 
 # Code editor related files
