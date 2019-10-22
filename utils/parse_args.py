@@ -24,6 +24,7 @@ def parse_args():
      train_parser.add_argument('--batch-size', '-b', type=int, default=16, help='Batch size. Default: 16')
      train_parser.add_argument('--epochs', '-e', type=int, default=10, help='Number of epochs. Default: 10')
      train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
+     train_parser.add_argument('--augment', type=bool, default=False, help='Activate augmentation')
      train_parser.add_argument('--mode', type=str, default='train_and_test', 
                                    help='Modes: '
                                         'train: perform training, skip evaluation;'

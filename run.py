@@ -108,14 +108,22 @@ def main(args):
         f.write(model.to_json())
 
     fit_callbacks = callbacks.all(checkpoints_dir, tensorboard_dir, monitor='val_loss', verbose=args.verbose)
+
+    augment = lambda x: x
+    if args.augment:
+        augment = {
+            'tune_source': dsgen.augment,
+            'tune_both'  : dsgen.augment,
+            'ccsa'       : dsgen.augment_combi,
+            'dsne'       : dsgen.augment_combi,
+        }[args.method]
     
     train = {
-        'tune_source': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+        'tune_source': lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         # 'tune_both': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
     }[args.method]
-
 
     # perform training and test
     if 'train' in args.mode:

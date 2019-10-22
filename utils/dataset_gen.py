@@ -3,12 +3,14 @@ import numpy as np
 from pathlib import Path
 from typing import List, Union, Optional, Dict, Tuple, Callable
 import random
-from functools import lru_cache
+from functools import lru_cache, partial
 import itertools
 from utils.io import load_json
 import tensorflow as tf
+from math import pi as PI
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
+DTYPE = tf.float32
 
 def dataset_from_paths(
     data_paths: List[str],
@@ -24,7 +26,7 @@ def dataset_from_paths(
         label = tf.equal(CLASS_NAMES, parts[-2]) # The second to last is the class-directory
         img = tf.compat.v2.io.read_file(file_path) # load the raw data from the file as a string
         img = tf.compat.v2.image.decode_jpeg(img, channels=3) # convert the compressed string to a 3D uint8 tensor
-        img = tf.compat.v2.image.convert_image_dtype(img, tf.float32) # Use `convert_image_dtype` to convert to floats in the [0,1] range.
+        img = tf.compat.v2.image.convert_image_dtype(img, DTYPE) # Use `convert_image_dtype` to convert to floats in the [0,1] range.
         if preprocess_input:
             img = preprocess_input(img*255) # preprocess input assumes input in [0,255] range.
         img = tf.compat.v2.image.resize(img, img_size) # resize the image to the desired size.
@@ -188,7 +190,7 @@ def da_combi_dataset(
     source_ds,
     target_ds,
     ratio:Optional[float]=None,
-    shuffle_buffer_size=1000
+    shuffle_buffer_size=5000
 ) -> Tuple[Dataset, int]:
     ''' Create a combined dataset of positive and negative pairs from source and target datasets.
         NB: This has not been optimized for large datasets!
@@ -235,6 +237,71 @@ def da_combi_dataset(
     types = (*source_ds.output_types, *target_ds.output_types, tf.bool)
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes).shuffle(buffer_size=shuffle_buffer_size)
     return mix_ds, size_ds
+
+
+def flip(x: tf.Tensor) -> tf.Tensor:
+        return tf.image.random_flip_left_right(x)
+
+def color(x: tf.Tensor) -> tf.Tensor:
+    x = tf.image.random_hue(x, 0.08)
+    x = tf.image.random_saturation(x, 0.6, 1.6)
+    x = tf.image.random_brightness(x, 0.05)
+    x = tf.image.random_contrast(x, 0.7, 1.3)
+    return x
+
+def rotate(x: tf.Tensor) -> tf.Tensor:
+    max_rot = PI / 45
+    return tf.contrib.image.rotate(x, tf.random_uniform(shape=[], minval=-max_rot, maxval=max_rot, dtype=DTYPE), interpolation='BILINEAR')
+
+def zoom(x: tf.Tensor, batch_size=16, crop_size=(224,224)) -> tf.Tensor:
+    scales = np.linspace(0.8, 1.0, batch_size)
+    np.random.shuffle(scales)
+    boxes = np.zeros((len(scales), 4))
+    for i, scale in enumerate(list(scales)):
+        x1 = y1 = 0.5 - (0.5 * scale)
+        x2 = y2 = 0.5 + (0.5 * scale)
+        boxes[i] = [x1, y1, x2, y2]
+    box_ind = np.arange(0, batch_size)
+    return tf.image.crop_and_resize(x, boxes=boxes, box_ind=box_ind, crop_size=crop_size)
+
+def clip(x: tf.Tensor) -> tf.Tensor:
+    return tf.clip_by_value(x, 0, 1)
+
+def augment(dataset:Dataset, batch_size=16, crop_size=(224,224)):
+    for f in [
+        flip, 
+        color, 
+        rotate, 
+        partial(zoom, batch_size=batch_size, crop_size=crop_size),
+        # clip
+    ]:
+        dataset = dataset.map(
+            map_func=lambda x, y: tf.cond(
+                pred=tf.random_uniform([], 0, 1) > 0.5, 
+                true_fn=lambda: (f(x), y),
+                false_fn=lambda: (x,y)
+            ), 
+            num_parallel_calls=AUTOTUNE
+        )
+    return dataset
+
+def augment_combi(dataset:Dataset, batch_size=16, crop_size=(224,224)):
+    for f in [
+        flip, 
+        color, 
+        rotate, 
+        partial(zoom, batch_size=batch_size, crop_size=crop_size),
+        # clip
+    ]:
+        dataset = dataset.map(
+            map_func=lambda x1, y1, x2, y2, eq: tf.cond(
+                pred=tf.random_uniform([], 0, 1) > 0.5, 
+                true_fn=lambda: (f(x1), y1, f(x2), y2, eq),
+                false_fn=lambda: (x1, y1, x2, y2, eq)
+            ), 
+            num_parallel_calls=AUTOTUNE
+        )
+    return dataset
 
 
 # leftovers from dev testing
