@@ -1,34 +1,20 @@
-import os
+from datetime import datetime
+from pathlib import Path
 import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 keras = tf.compat.v2.keras
-from utils.parse_args import parse_args
-import utils.dataset_gen as dsgen
-from utils.evaluation import evaluate
 import models
-import utils.callbacks as callbacks
-from datetime import datetime
-from pathlib import Path
-from sklearn.metrics import classification_report
-import json
-
-
-def setup_gpu(gpu_id):
-    from tensorflow.compat.v1 import ConfigProto
-    from tensorflow.compat.v1 import InteractiveSession
-
-    os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu_id)
-    if args.verbose:
-        print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-
-    config = ConfigProto()
-    config.gpu_options.allow_growth = True
-    session = InteractiveSession(config=config)
+import utils.dataset_gen as dsgen
+from utils.callbacks import all as callbacks
+from utils.parse_args import parse_args
+from utils.evaluation import evaluate
+from utils.io import save_json
+from utils.gpu import setup_gpu
 
 
 def main(args):
     if args.gpu_id:
-        setup_gpu(args.gpu_id)
+        setup_gpu(args.gpu_id, args.verbose)
 
     # documentation setup
     outputs_dir = Path(__file__).parent / 'runs' / '{}_{}_{}_{}'.format( datetime.now().strftime("%Y%m%d%H%M%S"), args.source, args.target, args.method )
@@ -41,8 +27,7 @@ def main(args):
     # pred_file_path = outputs_dir / 'predictions.csv'
     report_path = outputs_dir / 'report.json'
 
-    with open(config_path, 'w') as f:
-        json.dump(args.__dict__, f, indent=4)
+    save_json(args.__dict__, config_path)
 
     # data
     INPUT_SHAPE = (224, 224, 3)
@@ -107,7 +92,7 @@ def main(args):
     with open(model_path, 'w') as f:
         f.write(model.to_json())
 
-    fit_callbacks = callbacks.all(checkpoints_dir, tensorboard_dir, monitor='val_loss', verbose=args.verbose)
+    fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor='val_loss', verbose=args.verbose)
 
     augment = lambda x: x
     if args.augment:
