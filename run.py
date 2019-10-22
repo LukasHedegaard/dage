@@ -119,8 +119,8 @@ def main(args):
         }[args.method]
     
     train = {
-        'tune_source': lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
-        # 'tune_both': lambda x, s: models.classic.train(model=model, datasource=x, datasource_size=s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+        'tune_source'  : lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+        'tune_both'    : lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
     }[args.method]
@@ -132,7 +132,6 @@ def main(args):
 
     if 'test' in args.mode:
         for x, s in test_ds:
-            # model.evaluate(x, steps=s//args.batch_size, verbose=args.verbose)
             evaluate( model=model, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
 
 if __name__ == '__main__':
