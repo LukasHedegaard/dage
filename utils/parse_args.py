@@ -16,6 +16,7 @@ def parse_args():
      train_parser.add_argument('--method', type=str, default='tune_source',
                               help='Methods: '
                                    'tune_source: train one source, test on target;'
+                                   'tune_target: train one target, test on target;'
                                    'tune_both: train source and target, test on target; '
                                    'ccsa: contrastive loss; '
                                    'dsne: modified-Hausdorffian distance loss')
@@ -24,7 +25,7 @@ def parse_args():
      train_parser.add_argument('--batch-size', '-b', type=int, default=16, help='Batch size. Default: 16')
      train_parser.add_argument('--epochs', '-e', type=int, default=10, help='Number of epochs. Default: 10')
      train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
-     train_parser.add_argument('--augment', type=bool, default=False, help='Activate augmentation')
+     train_parser.add_argument('--augment', type=bool, default=True, help='Activate augmentation')
      train_parser.add_argument('--mode', type=str, default='train_and_test', 
                                    help='Modes: '
                                         'train: perform training, skip evaluation;'
