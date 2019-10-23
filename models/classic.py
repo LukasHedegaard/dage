@@ -68,7 +68,7 @@ def train(
     if verbose:
         print('Training top only')
     model = trainable_top(model)
-    model.compile(loss=model.loss, optimizer=model.optimizer, metrics=model.metrics)
+    model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
     model.fit( 
         x=datasource, 
         validation_data=val_datasource,
@@ -81,7 +81,7 @@ def train(
     if verbose:
         print('Training top and base top {} layers'.format(4))
     model = trainable_base_top(model, 4)
-    model.compile(loss=model.loss, optimizer=model.optimizer, metrics=model.metrics)
+    model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
     model.fit( 
         x=datasource, 
         validation_data=val_datasource,
@@ -94,7 +94,7 @@ def train(
     if verbose:
         print('Training whole network')
     model = trainable(model)
-    model.compile(loss=model.loss, optimizer=model.optimizer, metrics=model.metrics)
+    model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
     model.fit( 
         x=datasource, 
         validation_data=val_datasource,
