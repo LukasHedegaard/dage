@@ -21,6 +21,18 @@ def reduce_lr(monitor='loss', verbose=True):
         verbose=verbose
     )
 
+
+def early_stop(monitor='loss', verbose=True):
+    return keras.callbacks.EarlyStopping(
+        monitor=monitor, 
+        min_delta=0, 
+        patience=10, 
+        verbose=verbose, 
+        mode='auto', 
+        baseline=None, 
+        restore_best_weights=True
+    )
+
 def tensorboard(tensorboard_dir):
     return keras.callbacks.TensorBoard(log_dir=tensorboard_dir)
 
@@ -29,5 +41,6 @@ def all(checkpoints_dir, tensorboard_dir, monitor='loss', verbose=True):
     return [
         checkpoint(checkpoints_dir, monitor, verbose), 
         reduce_lr(monitor, verbose), 
+        early_stop(monitor, verbose), 
         tensorboard(tensorboard_dir)
     ]
