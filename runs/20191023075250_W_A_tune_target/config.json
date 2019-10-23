@@ -1,0 +1,18 @@
+{
+    "gpu_id": "1",
+    "model_base": "vgg16",
+    "from_weights": "/home/lhj/domain-adaptation/runs/20191022174104_W_A_tune_both/checkpoints/cp-025.ckpt",
+    "method": "tune_target",
+    "source": "W",
+    "target": "A",
+    "batch_size": 16,
+    "epochs": 3000,
+    "seed": 3,
+    "augment": true,
+    "mode": "train_and_test",
+    "ratio": null,
+    "shuffle_buffer_size": 1000,
+    "verbose": 1,
+    "optimizer": "adam",
+    "learning_rate": 0.001
+}
