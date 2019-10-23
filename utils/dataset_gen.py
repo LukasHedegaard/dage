@@ -185,7 +185,7 @@ def office31_class_names() -> List[str]:
     return sorted([item.name for item in data_dir.glob('*') if item.is_dir()])
 
 
-@lru_cache(maxsize = 1)
+# @lru_cache(maxsize = 1)
 def da_combi_dataset(
     source_ds,
     target_ds,
@@ -202,10 +202,6 @@ def da_combi_dataset(
     def equal_bool_tensors(t1, t2):
         return tf.math.reduce_all(tf.equal(t1, t2))
 
-    def gen_all():
-        for (s_dat, s_lbl), (t_dat, t_lbl) in itertools.product(source_ds, target_ds):
-            yield (s_dat, s_lbl, t_dat, t_lbl, equal_bool_tensors(s_lbl, t_lbl))
-
     def count_pair_types(src_ds, tgt_ds):
         tot = 0
         pos = 0
@@ -219,6 +215,10 @@ def da_combi_dataset(
     target_neg = round(n_pos*ratio)
     size_ds = n_pos + min(n_neg, target_neg)
 
+    def gen_all():
+        for (s_dat, s_lbl), (t_dat, t_lbl) in itertools.product(source_ds, target_ds):
+            yield ((s_dat, s_lbl), (t_dat, t_lbl), equal_bool_tensors(s_lbl, t_lbl))
+
     def gen_ratio():
         if not ratio or target_neg > n_neg:
             return gen_all
@@ -229,12 +229,12 @@ def da_combi_dataset(
             if not eq.numpy():
                 if neg_left > 0:
                     neg_left -= 1
-                    yield (s_dat, s_lbl, t_dat, t_lbl, eq)   
+                    yield ((s_dat, s_lbl), (t_dat, t_lbl), eq)   
             else:
-                yield (s_dat, s_lbl, t_dat, t_lbl, eq)
+                yield ((s_dat, s_lbl), (t_dat, t_lbl), eq)
 
-    shapes = (*source_ds.output_shapes, *target_ds.output_shapes, tf.compat.v2.TensorShape([]))
-    types = (*source_ds.output_types, *target_ds.output_types, tf.bool)
+    shapes = (source_ds.output_shapes, target_ds.output_shapes, tf.compat.v2.TensorShape([]))
+    types = (source_ds.output_types, target_ds.output_types, tf.bool)
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes).shuffle(buffer_size=shuffle_buffer_size)
     return mix_ds, size_ds
 
@@ -294,10 +294,10 @@ def augment_combi(dataset:Dataset, batch_size=16, crop_size=(224,224)):
         # clip
     ]:
         dataset = dataset.map(
-            map_func=lambda x1, y1, x2, y2, eq: tf.cond(
+            map_func=lambda src, tgt, eq: tf.cond(
                 pred=tf.random_uniform([], 0, 1) > 0.5, 
-                true_fn=lambda: (f(x1), y1, f(x2), y2, eq),
-                false_fn=lambda: (x1, y1, x2, y2, eq)
+                true_fn=lambda: ((f(src[0]), src[1]), (f(tgt[0]), tgt[1]), eq),
+                false_fn=lambda: (src, tgt, eq)
             ), 
             num_parallel_calls=AUTOTUNE
         )
