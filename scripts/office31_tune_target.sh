@@ -33,7 +33,7 @@ python run.py --method tune_target --source W --target A --model_base vgg16 --ep
 python run.py --method tune_target --source W --target D --model_base vgg16 --epochs 3000 --seed 4 --augment  True --from_weights ~/domain-adaptation/runs/20191022184038_W_D_tune_both/checkpoints/cp-025.ckpt
 
 # Repeat 5
-python run.py --method tune_target --source A --target D --model_base vgg16 --epochs 3000 --seed 5 --augment  True --from_weights ~/domain-adaptation/runs/20191022184642_A_D_tune_both/checkpoints/cp-025.ckpt
+python run.py --method tune_target --source A --target D --model_base vgg16 --epochs 3000 --seed 5 --augment  True --from_weights ~/domain-adaptation/runs/20191022184642_A_D_tune_both/checkpoints/cp-015.ckpt
 python run.py --method tune_target --source A --target W --model_base vgg16 --epochs 3000 --seed 5 --augment  True --from_weights ~/domain-adaptation/runs/20191022190310_A_W_tune_both/checkpoints/cp-025.ckpt
 python run.py --method tune_target --source D --target A --model_base vgg16 --epochs 3000 --seed 5 --augment  True --from_weights ~/domain-adaptation/runs/20191022191922_D_A_tune_both/checkpoints/cp-025.ckpt
 python run.py --method tune_target --source D --target W --model_base vgg16 --epochs 3000 --seed 5 --augment  True --from_weights ~/domain-adaptation/runs/20191022192357_D_W_tune_both/checkpoints/cp-025.ckpt
