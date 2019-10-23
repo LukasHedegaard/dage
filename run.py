@@ -45,6 +45,7 @@ def main(args):
     val_ds =  [ ds['target']['val'] ]
     train_ds = {
         'tune_source': lambda: [ ds['source']['full'] ],
+        'tune_target': lambda: [ ds['target']['train'] ],
         'tune_both'  : lambda: [ ds['source']['full'], ds['target']['train'] ],
         'ccsa'       : lambda: [ dsgen.da_combi_dataset(source_ds=ds['source']['train']['ds'], 
                                                         target_ds=ds['target']['train']['ds'], 
@@ -69,6 +70,7 @@ def main(args):
     model, loss = {
         # 'tune_source': lambda: ( models.simple(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
         'tune_source': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
+        'tune_target': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
         'tune_both'  : lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
         # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
@@ -98,6 +100,7 @@ def main(args):
     if args.augment:
         augment = {
             'tune_source': dsgen.augment,
+            'tune_target': dsgen.augment,
             'tune_both'  : dsgen.augment,
             'ccsa'       : dsgen.augment_combi,
             'dsne'       : dsgen.augment_combi,
@@ -105,6 +108,7 @@ def main(args):
     
     train = {
         'tune_source'  : lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+        'tune_target'  : lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         'tune_both'    : lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
         # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
