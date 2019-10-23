@@ -31,8 +31,8 @@ def parse_args():
                                         'train: perform training, skip evaluation;'
                                         'test: skip training, perform testing; '
                                         'train_and_test: perform training and testing')
-     train_parser.add_argument('--ratio', type=float, default=None, help='Ratio of negative to positive pairs for domain adaption')
-     train_parser.add_argument('--shuffle_buffer_size', type=int, default=1000, help='Size of buffer used for shuffling')
+     train_parser.add_argument('--ratio', type=float, default=1, help='Ratio of negative to positive pairs for domain adaption. Default: 1')
+     train_parser.add_argument('--shuffle_buffer_size', type=int, default=5000, help='Size of buffer used for shuffling')
      train_parser.add_argument('--verbose', type=int, default=1, help='Verbosity of training and evaluation')
 
      # optimizer
