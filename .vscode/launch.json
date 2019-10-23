@@ -29,6 +29,14 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: CCSA",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "args": ["--method", "ccsa"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Domain Adaption using CCSA",
             "type": "python",
             "request": "launch",
