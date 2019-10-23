@@ -29,15 +29,15 @@ def main(args):
 
     save_json(args.__dict__, config_path)
 
-    # data
-    INPUT_SHAPE = (224, 224, 3)
-    CLASS_NAMES = dsgen.office31_class_names()
-    OUTPUT_SHAPE = len(CLASS_NAMES)
-
+    # prepare data
     preprocess_input = {
         'vgg16'      : lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
         'resnet50'   : lambda x: keras.applications.resnet50.preprocess_input(x, mode='tf'),
     }[args.model_base] or None
+
+    INPUT_SHAPE = (224, 224, 3)
+    CLASS_NAMES = dsgen.office31_class_names()
+    OUTPUT_SHAPE = len(CLASS_NAMES)
 
     ds = dsgen.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, img_size=INPUT_SHAPE[:2], seed=args.seed)
 
@@ -61,18 +61,18 @@ def main(args):
     val_ds   = list(map(lambda d: ( dsgen.prep_test(dataset=d['ds'], batch_size=args.batch_size) , d['size']), val_ds ))[0]
     train_ds = list(map(lambda d: ( dsgen.prep_train(dataset=d['ds'], batch_size=args.batch_size) , d['size']), train_ds ))
 
-    # model
+    # prepare model
     model_base = {
         'vgg16'      : lambda: keras.applications.vgg16.VGG16      (input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
         'resnet50'   : lambda: keras.applications.resnet50.ResNet50(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
     }[args.model_base]()
 
-    model, loss = {
+    model, loss, loss_weights, train = {
         # 'tune_source': lambda: ( models.simple(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
-        'tune_source': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
-        'tune_target': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
-        'tune_both'  : lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
-        # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
+        'tune_source': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'tune_target': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'tune_both'  : lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'ccsa'       : lambda: ( lambda m=models.ccsa.CCSAModel(model_base, output_shape=OUTPUT_SHAPE): ( m.model, m.loss, m.loss_weights, m.train ) )(),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
     }[args.method]()
 
@@ -86,7 +86,7 @@ def main(args):
         weights_path = args.from_weights
         model.load_weights(str(weights_path))
 
-    model.compile(loss=loss, optimizer=optimizer, metrics=['accuracy'])
+    model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer, metrics=['accuracy'])
 
     if args.verbose:
         model.summary()
@@ -105,19 +105,11 @@ def main(args):
             'ccsa'       : dsgen.augment_combi,
             'dsne'       : dsgen.augment_combi,
         }[args.method]
-    
-    train = {
-        'tune_source'  : lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
-        'tune_target'  : lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
-        'tune_both'    : lambda x, s: models.classic.train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
-        # 'ccsa'       : lambda: models.CCSAModel(output_dim=OUTPUT_SHAPE),
-        # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
-    }[args.method]
 
     # perform training and test
     if 'train' in args.mode:
         for x, s in train_ds:
-            train(x,s)
+            train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
 
     if 'test' in args.mode:
         for x, s in test_ds:
