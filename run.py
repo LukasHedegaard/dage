@@ -1,16 +1,17 @@
 from datetime import datetime
 from pathlib import Path
 import tensorflow as tf
+tf.compat.v1.enable_eager_execution() 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 keras = tf.compat.v2.keras
 import models
-import utils.dataset_gen as dsgen
+import utils.dataset_gen as dsg
 from utils.callbacks import all as callbacks
 from utils.parse_args import parse_args
 from utils.evaluation import evaluate
 from utils.io import save_json
 from utils.gpu import setup_gpu
-
+from functools import partial
 
 def main(args):
     if args.gpu_id:
@@ -36,30 +37,39 @@ def main(args):
     }[args.model_base] or None
 
     INPUT_SHAPE = (224, 224, 3)
-    CLASS_NAMES = dsgen.office31_class_names()
+    CLASS_NAMES = dsg.office31_class_names()
     OUTPUT_SHAPE = len(CLASS_NAMES)
 
-    ds = dsgen.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, img_size=INPUT_SHAPE[:2], seed=args.seed)
+    ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, img_size=INPUT_SHAPE[:2], seed=args.seed)
 
-    test_ds = [ ds['target']['test'] ]
-    val_ds =  [ ds['target']['val'] ]
+    val_ds, test_ds = {
+        'tune_source': lambda: ( ds['target']['val'], ds['target']['test'] ),
+        'tune_target': lambda: ( ds['target']['val'], ds['target']['test'] ),
+        'tune_both'  : lambda: ( ds['target']['val'], ds['target']['test'] ),
+        'ccsa'       : lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ),
+        'dsne'       : lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ),      
+    }[args.method]()
+
     train_ds = {
         'tune_source': lambda: [ ds['source']['full'] ],
         'tune_target': lambda: [ ds['target']['train'] ],
         'tune_both'  : lambda: [ ds['source']['full'], ds['target']['train'] ],
-        'ccsa'       : lambda: [ dsgen.da_combi_dataset(source_ds=ds['source']['train']['ds'], 
-                                                        target_ds=ds['target']['train']['ds'], 
-                                                        ratio=args.ratio, 
-                                                        shuffle_buffer_size=args.shuffle_buffer_size) ],
-        'dsne'       : lambda: [ dsgen.da_combi_dataset(source_ds=ds['source']['train']['ds'], 
-                                                        target_ds=ds['target']['train']['ds'], 
-                                                        ratio=args.ratio, 
-                                                        shuffle_buffer_size=args.shuffle_buffer_size) ],
+        'ccsa'       : lambda: [ dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
+                                                     target_ds=ds['target']['train']['ds'], 
+                                                     ratio=args.ratio, 
+                                                     shuffle_buffer_size=args.shuffle_buffer_size) ],
+        'dsne'       : lambda: [ dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
+                                                     target_ds=ds['target']['train']['ds'], 
+                                                     ratio=args.ratio, 
+                                                     shuffle_buffer_size=args.shuffle_buffer_size) ],
     }[args.method]()
 
-    test_ds  = list(map(lambda d: ( dsgen.prep_test(dataset=d['ds'], batch_size=args.batch_size) , d['size']), test_ds ))
-    val_ds   = list(map(lambda d: ( dsgen.prep_test(dataset=d['ds'], batch_size=args.batch_size) , d['size']), val_ds ))[0]
-    train_ds = list(map(lambda d: ( dsgen.prep_train(dataset=d['ds'], batch_size=args.batch_size) , d['size']), train_ds ))
+    test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size), test_ds['size'])
+    val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size), val_ds['size'])
+    train_ds = [(dsg.prep_ds_train(dataset=d['ds'], batch_size=args.batch_size) , d['size']) for d in train_ds]
+    # test_ds  = list(map(lambda d: ( dsg.prep_ds(dataset=d['ds'], batch_size=args.batch_size) , d['size']), test_ds ))
+    # val_ds   = list(map(lambda d: ( dsg.prep_ds(dataset=d['ds'], batch_size=args.batch_size) , d['size']), val_ds ))[0]
+    # train_ds = list(map(lambda d: ( dsg.prep_ds_train(dataset=d['ds'], batch_size=args.batch_size) , d['size']), train_ds ))
 
     # prepare model
     model_base = {
@@ -99,21 +109,22 @@ def main(args):
     augment = lambda x: x
     if args.augment:
         augment = {
-            'tune_source': dsgen.augment,
-            'tune_target': dsgen.augment,
-            'tune_both'  : dsgen.augment,
-            'ccsa'       : dsgen.augment_combi,
-            'dsne'       : dsgen.augment_combi,
+            'tune_source': partial(dsg.augment,      batch_size=args.batch_size),
+            'tune_target': partial(dsg.augment,      batch_size=args.batch_size),
+            'tune_both'  : partial(dsg.augment,      batch_size=args.batch_size),
+            'ccsa'       : partial(dsg.augment_pair, batch_size=args.batch_size),
+            'dsne'       : partial(dsg.augment_pair, batch_size=args.batch_size),
         }[args.method]
 
     # perform training and test
     if 'train' in args.mode:
         for x, s in train_ds:
-            train(model=model, datasource=augment(x), datasource_size=s, val_datasource=val_ds[0], val_datasource_size=val_ds[1], epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+            v_x, v_s = val_ds
+            train(model=model, datasource=augment(x), datasource_size=s, val_datasource=v_x, val_datasource_size=v_s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
 
     if 'test' in args.mode:
-        for x, s in test_ds:
-            evaluate( model=model, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
+        x, s = test_ds
+        evaluate( model=model, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
 
 if __name__ == '__main__':
     args = parse_args()

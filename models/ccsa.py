@@ -4,23 +4,19 @@ keras = tf.compat.v2.keras
 K = keras.backend
 from utils.dataset_gen import DTYPE
 
-class Distance(keras.layers.Layer):
+class Diff(keras.layers.Layer):
     '''
-    Frobenius Norm of distance between inputs.
+    Difference between input elements.
     Assumes the input two be array-like with two elements
-    Implementation only supports 1D data
     '''
-    def __init__(self, name=None):
-        super(Distance, self).__init__(name=name)
-
     def call(self, inputs):
-        a = inputs[0]
-        b = inputs[1]
-        return M.square(M.sqrt(M.reduce_sum(M.square(a-b),axis=1)))
+        diff = M.subtract(inputs[0], inputs[1])
+        return diff
 
 
-def csa_loss(frob_norm, indicator):
+def csa_loss(indicator, diff):
     m = tf.constant(1, dtype=DTYPE)                                             # margin
+    frob_norm = M.square(M.sqrt(M.reduce_sum(M.square(diff),axis=1)))           # frobenius norm of difference
     d = M.multiply(0.5, M.square(frob_norm))                                    # distance metric
     k = M.multiply(0.5, M.square(M.maximum(tf.constant(0, dtype=DTYPE), M.subtract(m, frob_norm))))   # similarity metric
     L_SA = M.multiply(indicator, d)                                             # semantic allignment loss
@@ -51,7 +47,7 @@ class CCSAModel:
             keras.layers.Dropout(0.5),
             keras.layers.Dense(output_shape, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits'),
             keras.layers.Activation('softmax', name='preds'),
-        ], name='pred')
+        ], name='preds')
 
         # weight sharing is used: the same instance of model_base, and model_mid is used for both streams
         mid1 = self.model_mid(self.model_base(in1))
@@ -62,7 +58,7 @@ class CCSAModel:
         out1 = self.model_top(mid1)
         out2 = self.model_top(mid2)
 
-        aux_out = Distance(name='aux_out')([mid1, mid2])
+        aux_out = Diff(name='aux_out')([mid1, mid2])
 
         self.model = keras.models.Model(
             inputs=[in1, in2],
@@ -70,14 +66,14 @@ class CCSAModel:
         )
 
         self.loss = {
-            'pred'    : keras.losses.categorical_crossentropy,
-            'pred_1'  : keras.losses.categorical_crossentropy,
+            'preds'    : keras.losses.categorical_crossentropy,
+            'preds_1'  : keras.losses.categorical_crossentropy,
             'aux_out' : csa_loss
         }
 
         self.loss_weights = {
-            'pred'    : 0.5 * (1-alpha),
-            'pred_1'  : 0.5 * (1-alpha),
+            'preds'    : 0.5 * (1-alpha),
+            'preds_1'  : 0.5 * (1-alpha),
             'aux_out' : alpha
         }
         
@@ -118,50 +114,19 @@ class CCSAModel:
         val_datasource=None, 
         val_datasource_size=None 
     ):
-        ''' fine-tuning procedure
+        ''' ccsa training procedure
         '''
         validation_steps = val_datasource_size//batch_size if val_datasource_size else None
+        steps_per_epoch = datasource_size//batch_size
 
-        if verbose:
-            print('Training top only')
-        self._set_trainable_top()
-        model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
         model.fit( 
-            x=datasource, 
+            datasource,
             validation_data=val_datasource,
-            epochs=epochs//2, 
-            steps_per_epoch=datasource_size//batch_size, 
+            epochs=epochs, 
+            steps_per_epoch=steps_per_epoch, 
             validation_steps=validation_steps,
             callbacks=callbacks,
             verbose=verbose,
         )
 
-        if verbose:
-            print('Training top and base top {} layers'.format(4))
-        self._set_trainable_mid(num_base_layers_to_train=4)
-        model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
-        model.fit( 
-            x=datasource, 
-            validation_data=val_datasource,
-            epochs=epochs//2, 
-            steps_per_epoch=datasource_size//batch_size, 
-            validation_steps=validation_steps,
-            callbacks=callbacks,
-            verbose=verbose,
-        )
-
-        if verbose:
-            print('Training whole network')
-        self._set_trainable_all()
-        model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
-        model.fit( 
-            x=datasource, 
-            validation_data=val_datasource,
-            epochs=epochs//2, 
-            steps_per_epoch=datasource_size//batch_size, 
-            validation_steps=validation_steps,
-            callbacks=callbacks,
-            verbose=verbose,
-        )
-    
 
