@@ -1,5 +1,6 @@
 import tensorflow as tf
 keras = tf.compat.v2.keras
+from math import ceil
 
 def model(model_base, output_shape):
     model = keras.Sequential([
@@ -63,7 +64,9 @@ def train(
 ):
     ''' fine-tuning procedure
     '''
-    validation_steps = val_datasource_size//batch_size if val_datasource_size else None
+
+    validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
+    steps_per_epoch = ceil(datasource_size/batch_size)
 
     if verbose:
         print('Training top only')
@@ -73,7 +76,7 @@ def train(
         x=datasource, 
         validation_data=val_datasource,
         epochs=epochs//3, 
-        steps_per_epoch=datasource_size//batch_size, 
+        steps_per_epoch=steps_per_epoch, 
         validation_steps=validation_steps,
         callbacks=callbacks,
         verbose=verbose,
@@ -86,7 +89,7 @@ def train(
         x=datasource, 
         validation_data=val_datasource,
         epochs=epochs//3, 
-        steps_per_epoch=datasource_size//batch_size, 
+        steps_per_epoch=steps_per_epoch, 
         validation_steps=validation_steps,
         callbacks=callbacks,
         verbose=verbose,
@@ -99,7 +102,7 @@ def train(
         x=datasource, 
         validation_data=val_datasource,
         epochs=epochs//3, 
-        steps_per_epoch=datasource_size//batch_size, 
+        steps_per_epoch=steps_per_epoch, 
         validation_steps=validation_steps,
         callbacks=callbacks,
         verbose=verbose,

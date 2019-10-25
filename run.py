@@ -8,7 +8,7 @@ import models
 import utils.dataset_gen as dsg
 from utils.callbacks import all as callbacks
 from utils.parse_args import parse_args
-from utils.evaluation import evaluate
+import utils.evaluation as evaluation
 from utils.io import save_json
 from utils.gpu import setup_gpu
 from functools import partial
@@ -78,13 +78,20 @@ def main(args):
     }[args.model_base]()
 
     model, loss, loss_weights, train = {
-        # 'tune_source': lambda: ( models.simple(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy ),
         'tune_source': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
         'tune_target': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
         'tune_both'  : lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
         'ccsa'       : lambda: ( lambda m=models.ccsa.CCSAModel(model_base, output_shape=OUTPUT_SHAPE): ( m.model, m.loss, m.loss_weights, m.train ) )(),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
     }[args.method]()
+
+    evaluate = {
+        'tune_source': evaluation.evaluate,
+        'tune_target': evaluation.evaluate,
+        'tune_both'  : evaluation.evaluate,
+        'ccsa'       : evaluation.evaluate_da_pair,
+        'dsne'       : evaluation.evaluate_da_pair,
+    }[args.method]
 
     optimizer = {
         'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=False),

@@ -3,6 +3,7 @@ M = tf.compat.v2.math
 keras = tf.compat.v2.keras
 K = keras.backend
 from utils.dataset_gen import DTYPE
+from math import ceil
 
 class Diff(keras.layers.Layer):
     '''
@@ -116,8 +117,8 @@ class CCSAModel:
     ):
         ''' ccsa training procedure
         '''
-        validation_steps = val_datasource_size//batch_size if val_datasource_size else None
-        steps_per_epoch = datasource_size//batch_size
+        validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
+        steps_per_epoch = ceil(datasource_size/batch_size)
 
         model.fit( 
             datasource,
