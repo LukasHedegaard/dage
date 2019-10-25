@@ -3,7 +3,7 @@ keras = tf.compat.v2.keras
 
 def checkpoint(checkpoints_dir, monitor='loss',verbose=True):
     return keras.callbacks.ModelCheckpoint(
-        filepath=str(checkpoints_dir / 'cp-{epoch:003d}.ckpt'),
+        filepath=str(checkpoints_dir / 'cp-best.ckpt'),
         monitor=monitor,
         save_best_only=True,
         save_weights_only=True,
@@ -17,7 +17,7 @@ def reduce_lr(monitor='loss', verbose=True):
         monitor=monitor,
         factor=0.1,
         patience=5,
-        min_lr=1e-5,
+        min_lr=1e-6,
         verbose=verbose
     )
 
