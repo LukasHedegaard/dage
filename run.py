@@ -104,7 +104,14 @@ def main(args):
     with open(model_path, 'w') as f:
         f.write(model.to_json())
 
-    fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor='val_loss', verbose=args.verbose)
+    monitor = {
+        'tune_source': 'val_acc',
+        'tune_target': 'val_acc',
+        'tune_both'  : 'val_acc',
+        'ccsa'       : 'val_preds_acc',
+        'dsne'       : 'val_preds_acc',
+    }[args.method]
+    fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor=monitor, verbose=args.verbose)
 
     augment = lambda x: x
     if args.augment:
