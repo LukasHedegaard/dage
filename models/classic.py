@@ -2,7 +2,15 @@ import tensorflow as tf
 keras = tf.compat.v2.keras
 from math import ceil
 
-def model(model_base, output_shape):
+def model(
+    model_base, 
+    output_shape,
+    freeze_base=True,
+):
+    if freeze_base:
+        for layer in self.model_base.layers:
+            layer.trainable = False
+
     model = keras.Sequential([
         model_base,
         keras.layers.Dropout(0.25),
@@ -14,8 +22,6 @@ def model(model_base, output_shape):
         keras.layers.Dense(output_shape, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits'),
         keras.layers.Activation('softmax', name='preds'),
     ])
-
-    model.layers[0].trainable = False
 
     return model
 
@@ -68,42 +74,52 @@ def train(
     validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
     steps_per_epoch = ceil(datasource_size/batch_size)
 
-    if verbose:
-        print('Training top only')
-    model = trainable_top(model)
-    model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
     model.fit( 
         x=datasource, 
         validation_data=val_datasource,
-        epochs=epochs//3, 
+        epochs=epochs, 
         steps_per_epoch=steps_per_epoch, 
         validation_steps=validation_steps,
         callbacks=callbacks,
         verbose=verbose,
     )
-    if verbose:
-        print('Training top and base top {} layers'.format(4))
-    model = trainable_base_top(model, 4)
-    model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
-    model.fit( 
-        x=datasource, 
-        validation_data=val_datasource,
-        epochs=epochs//3, 
-        steps_per_epoch=steps_per_epoch, 
-        validation_steps=validation_steps,
-        callbacks=callbacks,
-        verbose=verbose,
-    )
-    if verbose:
-        print('Training whole network')
-    model = trainable(model)
-    model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
-    model.fit( 
-        x=datasource, 
-        validation_data=val_datasource,
-        epochs=epochs//3, 
-        steps_per_epoch=steps_per_epoch, 
-        validation_steps=validation_steps,
-        callbacks=callbacks,
-        verbose=verbose,
-    )
+
+    # if verbose:
+    #     print('Training top only')
+    # model = trainable_top(model)
+    # model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
+    # model.fit( 
+    #     x=datasource, 
+    #     validation_data=val_datasource,
+    #     epochs=epochs//3, 
+    #     steps_per_epoch=steps_per_epoch, 
+    #     validation_steps=validation_steps,
+    #     callbacks=callbacks,
+    #     verbose=verbose,
+    # )
+    # if verbose:
+    #     print('Training top and base top {} layers'.format(4))
+    # model = trainable_base_top(model, 4)
+    # model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
+    # model.fit( 
+    #     x=datasource, 
+    #     validation_data=val_datasource,
+    #     epochs=epochs//3, 
+    #     steps_per_epoch=steps_per_epoch, 
+    #     validation_steps=validation_steps,
+    #     callbacks=callbacks,
+    #     verbose=verbose,
+    # )
+    # if verbose:
+    #     print('Training whole network')
+    # model = trainable(model)
+    # model.compile(loss=model.loss, loss_weights=model.loss_weights, optimizer=model.optimizer, metrics=model.metrics)
+    # model.fit( 
+    #     x=datasource, 
+    #     validation_data=val_datasource,
+    #     epochs=epochs//3, 
+    #     steps_per_epoch=steps_per_epoch, 
+    #     validation_steps=validation_steps,
+    #     callbacks=callbacks,
+    #     verbose=verbose,
+    # )

@@ -16,23 +16,32 @@ class Diff(keras.layers.Layer):
 
 
 def csa_loss(indicator, diff):
+    indicator = tf.cast(indicator, DTYPE)
     m = tf.constant(1, dtype=DTYPE)                                             # margin
-    frob_norm = M.square(M.sqrt(M.reduce_sum(M.square(diff),axis=1)))           # frobenius norm of difference
+    frob_norm = M.sqrt(M.reduce_sum(M.square(diff),axis=1))                     # frobenius norm of difference
     d = M.multiply(0.5, M.square(frob_norm))                                    # distance metric
     k = M.multiply(0.5, M.square(M.maximum(tf.constant(0, dtype=DTYPE), M.subtract(m, frob_norm))))   # similarity metric
     L_SA = M.multiply(indicator, d)                                             # semantic allignment loss
     L_S  = M.multiply(M.subtract(tf.constant(1, dtype=DTYPE), indicator), k)    # separation loss
     L_CSA = L_SA + L_S                                                          # contrastive semantic alligment loss
-    return L_CSA
+    return M.reduce_mean(L_CSA)                                                 # average over batch
 
 
 class CCSAModel:
-    def __init__(self, model_base, output_shape, alpha=0.25):
+    def __init__(self, 
+        model_base, 
+        output_shape, 
+        freeze_base=True,
+        alpha=0.01,
+    ):
         input_shape = model_base.layers[0].input_shape[0][1:]
         in1 = keras.layers.Input(shape=input_shape, name='input_source')
         in2 = keras.layers.Input(shape=input_shape, name='input_target')
 
         self.model_base = model_base
+        if freeze_base:
+            for layer in self.model_base.layers:
+                layer.trainable = False
 
         self.model_mid = keras.Sequential([
             keras.layers.Input(shape=self.model_base.layers[-1].output_shape[1:]),
@@ -67,42 +76,16 @@ class CCSAModel:
         )
 
         self.loss = {
-            'preds'    : keras.losses.categorical_crossentropy,
-            'preds_1'  : keras.losses.categorical_crossentropy,
-            'aux_out' : csa_loss
+            'preds'  : keras.losses.categorical_crossentropy,
+            'preds_1': keras.losses.categorical_crossentropy,
+            'aux_out': csa_loss
         }
 
         self.loss_weights = {
-            'preds'    : 0.5 * (1-alpha),
-            'preds_1'  : 0.5 * (1-alpha),
-            'aux_out' : alpha
+            'preds'  : 0.5 * (1-alpha),
+            'preds_1': 0.5 * (1-alpha),
+            'aux_out': alpha
         }
-        
-    def _set_trainable_top(self):
-        for layer in self.model_base.layers:
-            layer.trainable = False
-        for layer in self.model_mid.layers:
-            layer.trainable = True 
-        for layer in self.model_top.layers:
-            layer.trainable = True 
-
-    def _set_trainable_mid(self, num_base_layers_to_train=4):
-        for layer in self.model_base.layers[:-num_base_layers_to_train]:
-            layer.trainable = False
-        for layer in self.model_base.layers[:-num_base_layers_to_train]:
-            layer.trainable = True
-        for layer in self.model_mid.layers:
-            layer.trainable = True 
-        for layer in self.model_top.layers:
-            layer.trainable = True 
-
-    def _set_trainable_all(self):
-        for layer in self.model_base.layers:
-            layer.trainable = True
-        for layer in self.model_mid.layers:
-            layer.trainable = True 
-        for layer in self.model_top.layers:
-            layer.trainable = True 
 
     def train(self,
         model, 

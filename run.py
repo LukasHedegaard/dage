@@ -78,10 +78,10 @@ def main(args):
     }[args.model_base]()
 
     model, loss, loss_weights, train = {
-        'tune_source': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'tune_target': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'tune_both'  : lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'ccsa'       : lambda: ( lambda m=models.ccsa.CCSAModel(model_base, output_shape=OUTPUT_SHAPE): ( m.model, m.loss, m.loss_weights, m.train ) )(),
+        'tune_source': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'tune_target': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'tune_both'  : lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'ccsa'       : lambda: ( lambda m=models.ccsa.CCSAModel(model_base, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, alpha=args.alpha): ( m.model, m.loss, m.loss_weights, m.train ) )(),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
     }[args.method]()
 
