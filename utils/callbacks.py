@@ -8,7 +8,7 @@ def checkpoint(checkpoints_dir, monitor='loss',verbose=True):
         save_best_only=True,
         save_weights_only=True,
         mode='auto',
-        period=5,  # Save weights, every 5 epoch.
+        period=1,  
         verbose=verbose
     )
 
@@ -16,7 +16,7 @@ def reduce_lr(monitor='loss', verbose=True):
     return keras.callbacks.ReduceLROnPlateau(
         monitor=monitor,
         factor=0.1,
-        patience=5,
+        patience=3,
         min_lr=1e-6,
         verbose=verbose
     )
@@ -26,7 +26,7 @@ def early_stop(monitor='loss', verbose=True):
     return keras.callbacks.EarlyStopping(
         monitor=monitor, 
         min_delta=0, 
-        patience=10, 
+        patience=5, 
         verbose=verbose, 
         mode='auto', 
         baseline=None, 
