@@ -10,6 +10,8 @@ def parse_args():
      model_parser = parser.add_argument_group(description='Model')
      model_parser.add_argument('--model_base', type=str, default='vgg16', help='Feature extractor for model. Default: vgg16')
      model_parser.add_argument('--from_weights', type=str, default=None, help='Path to pretrained model weights')
+     model_parser.add_argument('--alpha', type=float, default=0.005, help='Weighting for distance-based domain adaption losses. Default: 0.001')
+     model_parser.add_argument('--freeze_base', type=bool, default=True, help='Freeze base network. Default: True')
      
      # train
      train_parser = parser.add_argument_group(description='Training')
@@ -22,7 +24,7 @@ def parse_args():
                                    'dsne: modified-Hausdorffian distance loss')
      train_parser.add_argument('--source', type=str, default='A', help='Source domain')
      train_parser.add_argument('--target', type=str, default='D', help='Target domain')
-     train_parser.add_argument('--batch-size', '-b', type=int, default=16, help='Batch size. Default: 16')
+     train_parser.add_argument('--batch_size', '-b', type=int, default=16, help='Batch size. Default: 16')
      train_parser.add_argument('--epochs', '-e', type=int, default=10, help='Number of epochs. Default: 10')
      train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
      train_parser.add_argument('--augment', type=bool, default=True, help='Activate augmentation')
