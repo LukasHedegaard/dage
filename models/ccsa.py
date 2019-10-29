@@ -5,26 +5,40 @@ K = keras.backend
 from utils.dataset_gen import DTYPE
 from math import ceil
 
-class Diff(keras.layers.Layer):
+class Distance(keras.layers.Layer):
     '''
-    Difference between input elements.
+    Distance between input elements.
     Assumes the input two be array-like with two elements
     '''
     def call(self, inputs):
         diff = M.subtract(inputs[0], inputs[1])
-        return diff
+        dist = M.sqrt(M.reduce_sum(M.square(diff),axis=1)) # frobenius norm
+        return dist
 
 
-def csa_loss(indicator, diff):
+def contrastive_loss(indicator, distance, margin:float=100):
     indicator = tf.cast(indicator, DTYPE)
-    m = tf.constant(1, dtype=DTYPE)                                             # margin
-    frob_norm = M.sqrt(M.reduce_sum(M.square(diff),axis=1))                     # frobenius norm of difference
-    d = M.multiply(0.5, M.square(frob_norm))                                    # distance metric
-    k = M.multiply(0.5, M.square(M.maximum(tf.constant(0, dtype=DTYPE), M.subtract(m, frob_norm))))   # similarity metric
-    L_SA = M.multiply(indicator, d)                                             # semantic allignment loss
-    L_S  = M.multiply(M.subtract(tf.constant(1, dtype=DTYPE), indicator), k)    # separation loss
-    L_CSA = L_SA + L_S                                                          # contrastive semantic alligment loss
-    return M.reduce_mean(L_CSA)                                                 # average over batch
+    m = tf.constant(margin, dtype=DTYPE)
+
+    # loss for similarity
+    L_S = M.multiply(
+        tf.constant(0.5, dtype=DTYPE), 
+        M.square(distance)
+    )
+    # loss for dissimilarity
+    L_D = M.multiply(
+        tf.constant(0.5, dtype=DTYPE), 
+        M.square(M.maximum(
+            tf.constant(0, dtype=DTYPE), 
+            M.subtract(m, distance)
+        ))
+    )
+    # resulting contrastive loss
+    L_cont = M.add(
+        M.multiply(M.subtract(m, distance), L_S),
+        M.multiply(indicator, L_D)
+    )
+    return M.reduce_mean(L_cont) # average over batch
 
 
 class CCSAModel:
@@ -68,7 +82,7 @@ class CCSAModel:
         out1 = self.model_top(mid1)
         out2 = self.model_top(mid2)
 
-        aux_out = Diff(name='aux_out')([mid1, mid2])
+        aux_out = Distance(name='aux_out')([mid1, mid2])
 
         self.model = keras.models.Model(
             inputs=[in1, in2],
@@ -78,7 +92,7 @@ class CCSAModel:
         self.loss = {
             'preds'  : keras.losses.categorical_crossentropy,
             'preds_1': keras.losses.categorical_crossentropy,
-            'aux_out': csa_loss
+            'aux_out': contrastive_loss
         }
 
         self.loss_weights = {
