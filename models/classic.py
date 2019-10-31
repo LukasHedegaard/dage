@@ -8,7 +8,7 @@ def model(
     freeze_base=True,
 ):
     if freeze_base:
-        for layer in self.model_base.layers:
+        for layer in model_base.layers:
             layer.trainable = False
 
     model = keras.Sequential([
