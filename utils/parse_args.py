@@ -4,14 +4,14 @@ def parse_args():
      parser = argparse.ArgumentParser(description='Perform Supervised Domain Adaption')
 
      os_parser = parser.add_argument_group(description='OS')
-     os_parser.add_argument('--gpu_id', type=str, default='0', help='Which GPU to use. Default: 0')
+     os_parser.add_argument('--gpu_id', type=str, default='2', help='Which GPU to use. Default: 2')
      
      # model
      model_parser = parser.add_argument_group(description='Model')
      model_parser.add_argument('--model_base', type=str, default='vgg16', help='Feature extractor for model. Default: vgg16')
      model_parser.add_argument('--from_weights', type=str, default=None, help='Path to pretrained model weights')
-     model_parser.add_argument('--alpha', type=float, default=0.005, help='Weighting for distance-based domain adaption losses. Default: 0.001')
-     model_parser.add_argument('--freeze_base', type=bool, default=True, help='Freeze base network. Default: True')
+     model_parser.add_argument('--alpha', type=float, default=0.0, help='Weighting for distance-based domain adaption losses. Default: 0.005')
+     model_parser.add_argument('--freeze_base', type=int, default=1, help='Freeze base network. Default: 1')
      
      # train
      train_parser = parser.add_argument_group(description='Training')
@@ -27,7 +27,7 @@ def parse_args():
      train_parser.add_argument('--batch_size', '-b', type=int, default=16, help='Batch size. Default: 16')
      train_parser.add_argument('--epochs', '-e', type=int, default=10, help='Number of epochs. Default: 10')
      train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
-     train_parser.add_argument('--augment', type=bool, default=True, help='Activate augmentation')
+     train_parser.add_argument('--augment', type=int, default=1, help='Activate augmentation. Default: 1')
      train_parser.add_argument('--mode', type=str, default='train_and_test', 
                                    help='Modes: '
                                         'train: perform training, skip evaluation;'
