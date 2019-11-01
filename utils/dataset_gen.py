@@ -7,6 +7,7 @@ from functools import lru_cache, partial
 import itertools
 from utils.io import load_json
 import tensorflow as tf
+# import tensorflow_addons as tfa
 from math import pi as PI
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
@@ -36,7 +37,7 @@ def dataset_from_paths(
     return labeled_ds
 
 
-def prep_ds(dataset: Dataset, batch_size=16, cache:str=''):
+def prep_ds(dataset: Dataset, batch_size=16, cache:str=None):
     if cache:
         if isinstance(cache, str):
             dataset = dataset.cache(cache)
@@ -208,14 +209,14 @@ def da_pair_dataset(
     source_ds = source_ds.shuffle(buffer_size=shuffle_buffer_size)
     target_ds = target_ds.shuffle(buffer_size=shuffle_buffer_size)
 
-    def equal_bool_tensors(t1, t2):
-        return tf.math.reduce_all(tf.equal(t1, t2))
+    def equal_tensors(t1, t2):
+        return tf.cast(tf.math.reduce_all(tf.equal(t1, t2)), dtype=DTYPE)
 
     def count_pair_types(src_ds, tgt_ds):
         tot = 0
         pos = 0
         for (_, s_lbl), (_, t_lbl) in itertools.product(src_ds, tgt_ds):
-            pos += int(equal_bool_tensors(s_lbl, t_lbl).numpy())
+            pos += int(equal_tensors(s_lbl, t_lbl).numpy())
             tot += 1
         neg = tot - pos
         return pos, neg
@@ -226,7 +227,7 @@ def da_pair_dataset(
 
     def gen_all():
         for (src_d, src_l), (tgt_d, tgt_l) in itertools.product(source_ds, target_ds):
-            eq = equal_bool_tensors(src_l, tgt_l)
+            eq = equal_tensors(src_l, tgt_l)
             yield {mdl_ins[0]:src_d, mdl_ins[1]:tgt_d}, {mdl_outs[0]:src_l, mdl_outs[1]:tgt_l, mdl_outs[2]:eq}
 
     def gen_ratio():
@@ -235,7 +236,7 @@ def da_pair_dataset(
 
         neg_left = target_neg
         for (src_d, src_l), (tgt_d, tgt_l) in itertools.product(source_ds, target_ds):
-            eq = equal_bool_tensors(src_l, tgt_l)
+            eq = equal_tensors(src_l, tgt_l)
             if not eq.numpy():
                 if neg_left > 0:
                     neg_left -= 1
@@ -311,7 +312,8 @@ def color(x: tf.Tensor) -> tf.Tensor:
 
 def rotate(x: tf.Tensor) -> tf.Tensor:
     max_rot = PI / 45
-    return tf.contrib.image.rotate(x, tf.random_uniform(shape=[], minval=-max_rot, maxval=max_rot, dtype=DTYPE), interpolation='BILINEAR')
+    # return tfa.image.transform_ops.rotate(x, tf.random.uniform(shape=[], minval=-max_rot, maxval=max_rot, dtype=DTYPE), interpolation='BILINEAR')
+    return tf.contrib.image.rotate(x, tf.random.uniform(shape=[], minval=-max_rot, maxval=max_rot, dtype=DTYPE), interpolation='BILINEAR')
 
 def zoom(x: tf.Tensor, batch_size=16, crop_size=(224,224)) -> tf.Tensor:
     scales = np.linspace(0.8, 1.0, batch_size)
@@ -322,7 +324,7 @@ def zoom(x: tf.Tensor, batch_size=16, crop_size=(224,224)) -> tf.Tensor:
         x2 = y2 = 0.5 + (0.5 * scale)
         boxes[i] = [x1, y1, x2, y2]
     box_ind = np.arange(0, batch_size)
-    return tf.image.crop_and_resize(x, boxes=boxes, box_ind=box_ind, crop_size=crop_size)
+    return tf.image.crop_and_resize(x, boxes=boxes, box_indices=box_ind, crop_size=crop_size)
 
 def clip(x: tf.Tensor) -> tf.Tensor:
     return tf.clip_by_value(x, 0, 1)
@@ -337,7 +339,7 @@ def augment(dataset:Dataset, batch_size=16, crop_size=(224,224)):
     ]:
         dataset = dataset.map(
             map_func=lambda x, y: tf.cond(
-                pred=tf.random_uniform([], 0, 1) > 0.5, 
+                pred=tf.random.uniform([], 0, 1) > 0.5, 
                 true_fn=lambda: (f(x), y),
                 false_fn=lambda: (x,y)
             ), 
@@ -361,7 +363,7 @@ def augment_pair(
     ]:
         dataset = dataset.map(
             map_func=lambda x, y: tf.cond(
-                pred=tf.random_uniform([], 0, 1) > 0.5, 
+                pred=tf.random.uniform([], 0, 1) > 0.5, 
                 true_fn=lambda: ( {k:f(x[k]) for k in mdl_ins}, y ),
                 false_fn=lambda: (x, y),
             ), 
