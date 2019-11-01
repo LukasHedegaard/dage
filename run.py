@@ -12,6 +12,7 @@ import utils.evaluation as evaluation
 from utils.io import save_json
 from utils.gpu import setup_gpu
 from functools import partial
+from timeit import default_timer as timer
 
 def main(args):
     if args.gpu_id:
@@ -67,9 +68,6 @@ def main(args):
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size), test_ds['size'])
     val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size), val_ds['size'])
     train_ds = [(dsg.prep_ds_train(dataset=d['ds'], batch_size=args.batch_size) , d['size']) for d in train_ds]
-    # test_ds  = list(map(lambda d: ( dsg.prep_ds(dataset=d['ds'], batch_size=args.batch_size) , d['size']), test_ds ))
-    # val_ds   = list(map(lambda d: ( dsg.prep_ds(dataset=d['ds'], batch_size=args.batch_size) , d['size']), val_ds ))[0]
-    # train_ds = list(map(lambda d: ( dsg.prep_ds_train(dataset=d['ds'], batch_size=args.batch_size) , d['size']), train_ds ))
 
     # prepare model
     model_base = {
@@ -78,10 +76,10 @@ def main(args):
     }[args.model_base]()
 
     model, loss, loss_weights, train = {
-        'tune_source': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'tune_target': lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'tune_both'  : lambda: ( models.classic.model(model_base, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'ccsa'       : lambda: ( lambda m=models.ccsa.CCSAModel(model_base, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, alpha=args.alpha): ( m.model, m.loss, m.loss_weights, m.train ) )(),
+        'tune_source': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'tune_target': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'tune_both'  : lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
+        'ccsa'       : lambda: ( models.ccsa.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), models.ccsa.loss(), models.ccsa.loss_weights(alpha=args.alpha, even=True), models.ccsa.train),
         # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
     }[args.method]()
 
@@ -134,7 +132,11 @@ def main(args):
     if 'train' in args.mode:
         for x, s in train_ds:
             v_x, v_s = val_ds
-            train(model=model, datasource=augment(x), datasource_size=s, val_datasource=v_x, val_datasource_size=v_s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose),
+            start_time = timer()
+            train(model=model, datasource=augment(x), datasource_size=s, val_datasource=v_x, val_datasource_size=v_s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose)
+            train_time = timer() - start_time
+            if args.verbose:
+                print("Completed training in {} seconds".format(train_time))
 
     if 'test' in args.mode:
         x, s = test_ds
