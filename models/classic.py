@@ -4,11 +4,16 @@ from math import ceil
 
 def model(
     model_base, 
+    input_shape, #currently unused
     output_shape,
     freeze_base=True,
 ):
     if freeze_base:
         for layer in model_base.layers:
+            layer.trainable = False
+    else:
+        num_unfreeze_base = 4
+        for layer in model_base.layers[:-num_unfreeze_base]:
             layer.trainable = False
 
     model = keras.Sequential([
