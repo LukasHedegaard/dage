@@ -30,6 +30,28 @@ def evaluate_da_pair(
         get_data_and_lbls=lambda batch: (batch[0], batch[1]['preds'] ),
         get_preds=lambda batch: batch[0],
     )
+
+
+def evaluate_da_pair_orig(
+    model:Model, 
+    test_dataset:Dataset, 
+    test_size:int, 
+    batch_size:int,  
+    report_path:Path,
+    verbose:int,
+    target_names=None,
+):
+    return evaluate(
+        model, 
+        test_dataset, 
+        test_size, 
+        batch_size, 
+        report_path,
+        verbose,
+        target_names,
+        get_data_and_lbls=lambda batch: ([batch[0]['input_source'], batch[0]['input_target']], batch[1]['preds'] ),
+        get_preds=lambda batch: batch[0],
+    )
     
 
 def evaluate(
@@ -37,7 +59,6 @@ def evaluate(
     test_dataset:Dataset, 
     test_size:int, 
     batch_size:int,  
-    # pred_file_path:Path,
     report_path:Path,
     verbose:int,
     target_names=None,
