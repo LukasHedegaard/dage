@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 import tensorflow as tf
-tf.compat.v1.enable_eager_execution() 
+# tf.compat.v1.enable_eager_execution() 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 keras = tf.compat.v2.keras
 import models
@@ -52,22 +52,28 @@ def main(args):
     }[args.method]()
 
     train_ds = {
-        'tune_source': lambda: [ ds['source']['full'] ],
-        'tune_target': lambda: [ ds['target']['train'] ],
-        'tune_both'  : lambda: [ ds['source']['full'], ds['target']['train'] ],
-        'ccsa'       : lambda: [ dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
-                                                     target_ds=ds['target']['train']['ds'], 
-                                                     ratio=args.ratio, 
-                                                     shuffle_buffer_size=args.shuffle_buffer_size) ],
-        'dsne'       : lambda: [ dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
-                                                     target_ds=ds['target']['train']['ds'], 
-                                                     ratio=args.ratio, 
-                                                     shuffle_buffer_size=args.shuffle_buffer_size) ],
+        'tune_source': lambda: ds['source']['full'],
+        'tune_target': lambda: ds['target']['train'],
+        'ccsa'       : lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
+                                                   target_ds=ds['target']['train']['ds'], 
+                                                   ratio=args.ratio, 
+                                                   shuffle_buffer_size=args.shuffle_buffer_size),
+        'dsne'       : lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
+                                                   target_ds=ds['target']['train']['ds'], 
+                                                   ratio=args.ratio, 
+                                                   shuffle_buffer_size=args.shuffle_buffer_size),
     }[args.method]()
 
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size), test_ds['size'])
     val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size), val_ds['size'])
-    train_ds = [(dsg.prep_ds_train(dataset=d['ds'], batch_size=args.batch_size) , d['size']) for d in train_ds]
+    train_ds = (dsg.prep_ds_train(dataset=train_ds['ds'], batch_size=args.batch_size), train_ds['size'])
+
+    # prepare optimizer
+    optimizer = {
+        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=False),
+        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False),
+        'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate),
+    }[args.optimizer]()
 
     # prepare model
     model_base = {
@@ -75,12 +81,12 @@ def main(args):
         'resnet50'   : lambda: keras.applications.resnet50.ResNet50(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
     }[args.model_base]()
 
-    model, loss, loss_weights, train = {
-        'tune_source': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'tune_target': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'tune_both'  : lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), keras.losses.categorical_crossentropy, None, models.classic.train),
-        'ccsa'       : lambda: ( models.ccsa.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base), models.ccsa.loss(), models.ccsa.loss_weights(alpha=args.alpha, even=True), models.ccsa.train),
-        # 'dsne'       : lambda: models.DSNEModel(output_dim=OUTPUT_SHAPE),
+    model, train = {
+        'tune_source': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer), models.classic.train),
+        'tune_target': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer), models.classic.train),
+        'tune_both'  : lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer), models.classic.train),
+        'ccsa'       : lambda: ( models.ccsa.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, alpha=args.alpha), models.ccsa.train),
+        'dsne'       : lambda: ( models.dsne.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, alpha=args.alpha, batch_size=args.batch_size), models.dsne.train),
     }[args.method]()
 
     evaluate = {
@@ -91,17 +97,11 @@ def main(args):
         'dsne'       : evaluation.evaluate_da_pair,
     }[args.method]
 
-    optimizer = {
-        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=False),
-        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False),
-        'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate),
-    }[args.optimizer]()
-
     if args.from_weights:
         weights_path = args.from_weights
         model.load_weights(str(weights_path))
 
-    model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer, metrics=['accuracy'])
+    # model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer, metrics=['accuracy'])
 
     if args.verbose:
         model.summary()
@@ -130,13 +130,13 @@ def main(args):
 
     # perform training and test
     if 'train' in args.mode:
-        for x, s in train_ds:
-            v_x, v_s = val_ds
-            start_time = timer()
-            train(model=model, datasource=augment(x), datasource_size=s, val_datasource=v_x, val_datasource_size=v_s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose)
-            train_time = timer() - start_time
-            if args.verbose:
-                print("Completed training in {} seconds".format(train_time))
+        x, s = train_ds
+        v_x, v_s = val_ds
+        start_time = timer()
+        train(model=model, datasource=augment(x), datasource_size=s, val_datasource=v_x, val_datasource_size=v_s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose)
+        train_time = timer() - start_time
+        if args.verbose:
+            print("Completed training in {} seconds".format(train_time))
 
     if 'test' in args.mode:
         x, s = test_ds

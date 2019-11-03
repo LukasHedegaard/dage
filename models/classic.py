@@ -6,6 +6,7 @@ def model(
     model_base, 
     input_shape, #currently unused
     output_shape,
+    optimizer,
     freeze_base=True,
 ):
     if freeze_base:
@@ -27,6 +28,13 @@ def model(
         keras.layers.Dense(output_shape, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits'),
         keras.layers.Activation('softmax', name='preds'),
     ])
+
+    model.compile(
+        loss=keras.losses.categorical_crossentropy, 
+        loss_weights=None, 
+        optimizer=optimizer, 
+        metrics=['accuracy'],
+    )
 
     return model
 
