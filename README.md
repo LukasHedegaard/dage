@@ -46,12 +46,12 @@ $ sh scripts/office31_tune_both.sh
 
 Perform domain adaption using the CCSA method
 ```bash
-$ sh scripts/office31_tune_target.sh
+$ sh scripts/office31_ccsa.sh
 ```
 
 Perform domain adaption using the d-SNE method
 ```bash
-$ sh scripts/office31_tune_target.sh
+$ sh scripts/office31_dsne.sh
 ```
 
 <!-- ### Custom runs
