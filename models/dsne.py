@@ -11,7 +11,7 @@ def Pair(name, embed_size, num_in_pair=2):
         Assummes that input dimensions of the inputs equal.
     '''
     layers = [
-        tf.keras.layers.Concatenate(axis=1),
+        tf.keras.layers.Concatenate(axis=1, name="{}_concat".format(name)),
         tf.keras.layers.Reshape(
             (num_in_pair, embed_size), 
             input_shape=(num_in_pair*embed_size,), 
@@ -24,31 +24,66 @@ def Pair(name, embed_size, num_in_pair=2):
         return x
     return call
 
-def euclidean_distance(x1, x2):
-    return K.sqrt(K.maximum(K.sum(K.square(x1-x2), axis=1, keepdims=False), 1e-08))
 
-def labels_equal(y1, y2):
-    return tf.cast(tf.reduce_all(tf.equal(y1,y2), axis=1, keepdims=False), dtype=tf.float32)
+def padded(t, shape, pad_val=0):
+    def pad_up_to(t, max_in_dims, constant_values=0):
+        s = tf.shape(t)
+        paddings = [[0, m-s[i]] for (i,m) in enumerate(max_in_dims)]
+        return tf.pad(t, paddings, 'CONSTANT', constant_values=0)
 
-def contrastive_loss(#self, 
-    y_true, 
-    y_pred
+    return tf.cond(tf.reduce_any(tf.less(tf.shape(t), shape)), true_fn=lambda: pad_up_to(t, shape, pad_val), false_fn=lambda: t)
+
+def pad_to_batch(t, batch_size, pad_val=0):
+    shape = (batch_size, *[s.value for s in t.shape[1:]])
+    return padded(t,shape,pad_val)
+
+
+def dnse_loss(
+    batch_size = 16,
+    embed_size = 128,
+    margin=1
 ):
-    ''' Implementation of contrastive loss. 
-        Original implementation found at https://github.com/samotiian/CCSA
-        @param y_true: distance between source and target features
-        @param y_pred: tuple or array of two elements, containing source and taget labels
-    '''
-    margin = 1
-    xs, xt = y_pred[:,0], y_pred[:,1]
-    ys, yt = y_true[:,0], y_true[:,1]
-    
-    dist = euclidean_distance(xs, xt)
-    label = labels_equal(ys, yt)
+    batch_size_target = batch_size_source = batch_size
 
-    losses = label * K.square(dist) + (1 - label) * K.square(K.maximum(margin - dist, 0))
-    # return K.mean(losses)
-    return losses
+    def loss(y_true, y_pred):
+        ''' Tensorflow implementation of d-SNE loss. 
+            Original Mxnet implementation found at https://github.com/aws-samples/d-SNE.
+            @param y_true: tuple or array of two elements, containing source and target features
+            @param y_pred: tuple or array of two elements, containing source and taget labels
+        '''
+        xs = pad_to_batch(y_pred[:,0], batch_size_source)
+        xt = pad_to_batch(y_pred[:,1], batch_size_target)
+        ys = pad_to_batch(tf.argmax(tf.cast(y_true[:,0], dtype=tf.int32), axis=1), batch_size_source)
+        yt = pad_to_batch(tf.argmax(tf.cast(y_true[:,1], dtype=tf.int32), axis=1), batch_size_target)
+
+        # The original implementation provided an optional feature-normalisation (L2) here. We'll skip it
+
+        xs_rpt = tf.broadcast_to(tf.expand_dims(xs, axis=0), shape=(batch_size_target, batch_size_source, embed_size))
+        xt_rpt = tf.broadcast_to(tf.expand_dims(xt, axis=1), shape=(batch_size_target, batch_size_source, embed_size))
+
+        dists = tf.reduce_sum(tf.square(xt_rpt - xs_rpt), axis=2)
+
+        yt_rpt = tf.broadcast_to(tf.expand_dims(yt, axis=1), shape=(batch_size_target, batch_size_source))
+        ys_rpt = tf.broadcast_to(tf.expand_dims(ys, axis=0), shape=(batch_size_target, batch_size_source))
+
+        y_same = tf.equal(yt_rpt, ys_rpt)
+        y_diff = tf.not_equal(yt_rpt, ys_rpt)
+
+        intra_cls_dists = tf.multiply(dists, tf.cast(y_same, dtype=DTYPE))
+        inter_cls_dists = tf.multiply(dists, tf.cast(y_diff, dtype=DTYPE))
+
+        max_dists = tf.reduce_max(dists, axis=1, keepdims=True)
+        max_dists = tf.broadcast_to(max_dists, shape=(batch_size_target, batch_size_source))
+        revised_inter_cls_dists = tf.where(y_same, max_dists, inter_cls_dists)
+
+        max_intra_cls_dist = tf.reduce_max(intra_cls_dists, axis=1)
+        min_inter_cls_dist = tf.reduce_min(revised_inter_cls_dists, axis=1)
+
+        loss = tf.nn.relu(max_intra_cls_dist - min_inter_cls_dist + margin)
+
+        return loss
+
+    return loss
 
 
 def model(
@@ -56,6 +91,7 @@ def model(
     input_shape,
     output_shape,
     optimizer,
+    batch_size,
     alpha=0.25,
     even_loss_weights=True,
     freeze_base=True,
@@ -111,7 +147,7 @@ def model(
     )
     
     model.compile(
-        loss=loss(), 
+        loss=loss(batch_size=batch_size, embed_size=embed_size, margin=1), 
         loss_weights=loss_weights(alpha, even_loss_weights), 
         optimizer=optimizer, 
         metrics={'preds':'accuracy', 'preds_1':'accuracy'},
@@ -119,11 +155,11 @@ def model(
 
     return model
 
-def loss():
+def loss(batch_size=16, embed_size=128, margin=1):
     return {
         'preds'  : keras.losses.categorical_crossentropy,
         'preds_1': keras.losses.categorical_crossentropy,
-        'aux_out': contrastive_loss
+        'aux_out': dnse_loss(batch_size=16, embed_size=128, margin=1)
     }
 
 def loss_weights(alpha=0.25, even=True):
@@ -156,59 +192,3 @@ def train(
         callbacks=callbacks,
         verbose=verbose,
     )
-
-def train_flipping(
-    model, 
-    datasource, 
-    datasource_size, 
-    epochs, 
-    batch_size, 
-    callbacks, 
-    verbose=1, 
-    val_datasource=None, 
-    val_datasource_size=None 
-):
-    validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
-    steps_per_epoch = ceil(datasource_size/batch_size)
-
-    train_iter = iter(datasource)
-    
-    for e in range(1,epochs+1):
-        if verbose:
-            print('Epoch {}/{}.'.format(e, epochs))
-
-        for step in range(steps_per_epoch):
-            ins, outs = next(train_iter)
-
-            source_loss = model.train_on_batch(ins, outs)
-
-            target_loss = model.train_on_batch(
-                {'input_source': ins['input_target'], 'input_target': ins['input_source']},
-                {'preds': outs['preds_1'], 'preds_1':outs['preds'], 'aux_out': outs['aux_out']}
-            )
-
-            if step % 10 == 0 and verbose:
-                print(' Step {}/{}'.format(step, steps_per_epoch))
-                print('  Source Pass:  {}'.format(
-                    '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], source_loss[i]) for i in range(len(source_loss))])
-                ))
-                print('  Target Pass:  {}'.format(
-                    '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], target_loss[i]) for i in range(len(target_loss))])
-                ))
-
-        val_iter = iter(val_datasource)
-        val_loss = []
-        for step in range(validation_steps):
-            ins, outs = next(val_iter)
-            val_loss.append(model.test_on_batch(ins, outs))
-
-        val_loss_avg = reduce(
-            lambda n, o: [n[i]+o[i] for i in range(len(val_loss))],
-            val_loss, 
-            [0 for _ in val_loss[0]]
-        )
-
-        if verbose:
-            print('  Validation:  {}'.format(
-                '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], val_loss_avg[i]) for i in range(len(val_loss_avg))])
-            ))

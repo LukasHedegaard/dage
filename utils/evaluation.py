@@ -77,7 +77,7 @@ def evaluate(
         data, lbls = get_data_and_lbls(batch)
         pred_probs = model.predict_on_batch(data)
         pred_probs = get_preds(pred_probs)
-        y_pred.extend(pred_probs.argmax(axis=1))
+        y_pred.extend(tf.argmax(pred_probs, axis=1))
         y_true.extend(lbls.numpy().argmax(axis=1))
         progbar.add(1)
 

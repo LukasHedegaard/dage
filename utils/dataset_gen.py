@@ -8,6 +8,7 @@ import itertools
 from utils.io import load_json
 import tensorflow as tf
 # import tensorflow_addons as tfa
+tf.compat.v1.enable_eager_execution()
 from math import pi as PI
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
@@ -226,35 +227,42 @@ def da_pair_dataset(
     size_ds = n_pos + min(n_neg, target_neg)
 
     def gen_all():
-        for (src_d, src_l), (tgt_d, tgt_l) in itertools.product(source_ds, target_ds):
-            eq = equal_tensors(src_l, tgt_l)
-            yield {mdl_ins[0]:src_d, mdl_ins[1]:tgt_d}, {mdl_outs[0]:src_l, mdl_outs[1]:tgt_l, mdl_outs[2]:eq}
+        for (xs, ys), (xt, yt) in itertools.product(source_ds, target_ds):
+            # yield xs, xt, ys, yt, [ys, yt]
+            # yield (xs, xt), (ys, yt, [ys, yt])
+            yield {mdl_ins[0]:xs, mdl_ins[1]:xt}, {mdl_outs[0]:ys, mdl_outs[1]:yt, mdl_outs[2]:[ys, yt]}
 
     def gen_ratio():
         if not ratio or target_neg > n_neg:
             return gen_all
 
         neg_left = target_neg
-        for (src_d, src_l), (tgt_d, tgt_l) in itertools.product(source_ds, target_ds):
-            eq = equal_tensors(src_l, tgt_l)
+        for (xs, ys), (xt, yt) in itertools.product(source_ds, target_ds):
+            eq = equal_tensors(ys, yt)
             if not eq.numpy():
                 if neg_left > 0:
                     neg_left -= 1
-                    yield {mdl_ins[0]:src_d, mdl_ins[1]:tgt_d}, {mdl_outs[0]:src_l, mdl_outs[1]:tgt_l, mdl_outs[2]:eq}
+                    # yield xs, xt, ys, yt, [ys, yt]
+                    # yield (xs, xt), (ys, yt, [ys, yt])
+                    yield {mdl_ins[0]:xs, mdl_ins[1]:xt}, {mdl_outs[0]:ys, mdl_outs[1]:yt, mdl_outs[2]:[ys, yt]}
             else:
-                yield {mdl_ins[0]:src_d, mdl_ins[1]:tgt_d}, {mdl_outs[0]:src_l, mdl_outs[1]:tgt_l, mdl_outs[2]:eq}
+                # yield xs, xt, ys, yt, [ys, yt]
+                # yield (xs, xt), (ys, yt, [ys, yt])
+                yield {mdl_ins[0]:xs, mdl_ins[1]:xt}, {mdl_outs[0]:ys, mdl_outs[1]:yt, mdl_outs[2]:[ys, yt]}
 
     shapes = ({ mdl_ins[0]:  source_ds.output_shapes[0], 
                 mdl_ins[1]:  target_ds.output_shapes[0] }, 
               { mdl_outs[0]: source_ds.output_shapes[1], 
                 mdl_outs[1]: target_ds.output_shapes[1], 
-                mdl_outs[2]: tf.compat.v2.TensorShape([]) })
+                mdl_outs[2]: tf.compat.v2.TensorShape([2,target_ds.output_shapes[1][0]])
+              })
 
     types  = ({ mdl_ins[0]:  source_ds.output_types[0], 
                 mdl_ins[1]:  target_ds.output_types[0] }, 
               { mdl_outs[0]: source_ds.output_types[1], 
                 mdl_outs[1]: target_ds.output_types[1], 
-                mdl_outs[2]: tf.bool })
+                mdl_outs[2]: target_ds.output_types[1]
+              })
 
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes).shuffle(buffer_size=shuffle_buffer_size)
     return {
@@ -277,14 +285,14 @@ def da_pair_repeat_dataset(
 
     def gen_pars():
         for (d, l) in ds:
-            eq = tf.constant(True, dtype=tf.bool)
-            yield {mdl_ins[0]:d, mdl_ins[1]:d}, {mdl_outs[0]:l, mdl_outs[1]:l, mdl_outs[2]:eq}
+            yield {mdl_ins[0]:d, mdl_ins[1]:d}, {mdl_outs[0]:l, mdl_outs[1]:l, mdl_outs[2]:[l,l]}
 
     shapes = ({ mdl_ins[0]:  ds.output_shapes[0], 
                 mdl_ins[1]:  ds.output_shapes[0] }, 
               { mdl_outs[0]: ds.output_shapes[1], 
                 mdl_outs[1]: ds.output_shapes[1], 
-                mdl_outs[2]: tf.compat.v2.TensorShape([]) })
+                mdl_outs[2]: tf.compat.v2.TensorShape([2,ds.output_shapes[1][0]]) 
+              })
 
     types  = ({ mdl_ins[0]:  ds.output_types[0], 
                 mdl_ins[1]:  ds.output_types[0] }, 
