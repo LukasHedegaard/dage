@@ -11,7 +11,7 @@ def Pair(name, embed_size, num_in_pair=2):
         Assummes that input dimensions of the inputs equal.
     '''
     layers = [
-        tf.keras.layers.Concatenate(axis=1),
+        tf.keras.layers.Concatenate(axis=1, name="{}_concat".format(name)),
         tf.keras.layers.Reshape(
             (num_in_pair, embed_size), 
             input_shape=(num_in_pair*embed_size,), 
@@ -23,6 +23,20 @@ def Pair(name, embed_size, num_in_pair=2):
             x = layer(x)
         return x
     return call
+
+
+def padded(t, shape, pad_val=0):
+    def pad_up_to(t, max_in_dims, constant_values=0):
+        s = tf.shape(t)
+        paddings = [[0, m-s[i]] for (i,m) in enumerate(max_in_dims)]
+        return tf.pad(t, paddings, 'CONSTANT', constant_values=0)
+
+    return tf.cond(tf.reduce_any(tf.less(tf.shape(t), shape)), true_fn=lambda: pad_up_to(t, shape, pad_val), false_fn=lambda: t)
+
+def pad_to_batch(t, batch_size, pad_val=0):
+    shape = (batch_size, *[s.value for s in t.shape[1:]])
+    return padded(t,shape,pad_val)
+
 
 def dnse_loss(
     batch_size = 16,
@@ -37,10 +51,10 @@ def dnse_loss(
             @param y_true: tuple or array of two elements, containing source and target features
             @param y_pred: tuple or array of two elements, containing source and taget labels
         '''
-
-        xs, xt = y_pred[:,0], y_pred[:,1]
-        ys = tf.argmax(tf.cast(y_true[:,0], dtype=tf.int32), axis=1)
-        yt = tf.argmax(tf.cast(y_true[:,1], dtype=tf.int32), axis=1)
+        xs = pad_to_batch(y_pred[:,0], batch_size_source)
+        xt = pad_to_batch(y_pred[:,1], batch_size_target)
+        ys = pad_to_batch(tf.argmax(tf.cast(y_true[:,0], dtype=tf.int32), axis=1), batch_size_source)
+        yt = pad_to_batch(tf.argmax(tf.cast(y_true[:,1], dtype=tf.int32), axis=1), batch_size_target)
 
         # The original implementation provided an optional feature-normalisation (L2) here. We'll skip it
 
@@ -82,14 +96,6 @@ def model(
     even_loss_weights=True,
     freeze_base=True,
 ):
-    # ds_iter = dataset.make_one_shot_iterator()
-    # x1, x2, y1, y2, y12 = ds_iter.get_next()
-    # ds_iter = iter(dataset)
-    # x1, x2, y1, y2, y12 = next(ds_iter)
-
-    # in1 = keras.layers.Input(tensor=x1, name='input_source')
-    # in2 = keras.layers.Input(tensor=x2, name='input_target')
-
     embed_size = 128
     
     in1 = keras.layers.Input(shape=input_shape, name='input_source')
@@ -144,7 +150,7 @@ def model(
         loss=loss(batch_size=batch_size, embed_size=embed_size, margin=1), 
         loss_weights=loss_weights(alpha, even_loss_weights), 
         optimizer=optimizer, 
-        metrics=['accuracy'],
+        metrics={'preds':'accuracy', 'preds_1':'accuracy'},
     )
 
     return model
