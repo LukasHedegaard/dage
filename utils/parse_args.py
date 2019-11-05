@@ -10,7 +10,8 @@ def parse_args():
      model_parser = parser.add_argument_group(description='Model')
      model_parser.add_argument('--model_base', type=str, default='vgg16', help='Feature extractor for model. Default: vgg16')
      model_parser.add_argument('--from_weights', type=str, default=None, help='Path to pretrained model weights')
-     model_parser.add_argument('--alpha', type=float, default=0.0, help='Weighting for distance-based domain adaption losses. Default: 0.005')
+     model_parser.add_argument('--alpha', type=float, default=0.25, help='Weighting for distance-based domain adaption losses. Default: 0.25')
+     model_parser.add_argument('--even_loss_weights', type=int, default=1, help='Use even weighting for source and target losses. Default: 1')
      model_parser.add_argument('--freeze_base', type=int, default=1, help='Freeze base network. Default: 1')
      
      # train

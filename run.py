@@ -85,8 +85,8 @@ def main(args):
         'tune_source': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer), models.classic.train),
         'tune_target': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer), models.classic.train),
         'tune_both'  : lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer), models.classic.train),
-        'ccsa'       : lambda: ( models.ccsa.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, alpha=args.alpha), models.ccsa.train),
-        'dsne'       : lambda: ( models.dsne.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, alpha=args.alpha, batch_size=args.batch_size), models.dsne.train),
+        'ccsa'       : lambda: ( models.ccsa.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, alpha=args.alpha, even_loss_weights=args.even_loss_weights), models.ccsa.train),
+        'dsne'       : lambda: ( models.dsne.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, alpha=args.alpha, even_loss_weights=args.even_loss_weights, batch_size=args.batch_size), models.dsne.train),
     }[args.method]()
 
     evaluate = {

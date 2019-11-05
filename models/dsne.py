@@ -162,10 +162,10 @@ def loss(batch_size=16, embed_size=128, margin=1):
         'aux_out': dnse_loss(batch_size=16, embed_size=128, margin=1)
     }
 
-def loss_weights(alpha=0.25, even=True):
+def loss_weights(alpha=0.25, even=1):
     return {
-        'preds'  : 0.5*(1-alpha) if even else 1-alpha,
-        'preds_1': 0.5*(1-alpha) if even else 0,
+        'preds'  : 0.5*(1-alpha) if even else 0,
+        'preds_1': 0.5*(1-alpha) if even else 1-alpha,
         'aux_out': alpha
     }
 
@@ -180,8 +180,10 @@ def train(
     val_datasource=None, 
     val_datasource_size=None 
 ):
-    validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
-    steps_per_epoch = ceil(datasource_size/batch_size)
+    # validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
+    # steps_per_epoch = ceil(datasource_size/batch_size)
+    validation_steps = val_datasource_size//batch_size if val_datasource_size else None
+    steps_per_epoch = datasource_size//batch_size
 
     model.fit( 
         datasource,

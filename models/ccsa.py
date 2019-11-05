@@ -128,8 +128,8 @@ def loss():
 
 def loss_weights(alpha=0.25, even=True):
     return {
-        'preds'  : 0.5*(1-alpha) if even else 1-alpha,
-        'preds_1': 0.5*(1-alpha) if even else 0,
+        'preds'  : 0.5*(1-alpha) if even else 0,
+        'preds_1': 0.5*(1-alpha) if even else 1-alpha,
         'aux_out': alpha
     }
 
