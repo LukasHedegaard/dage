@@ -34,7 +34,7 @@ def main(args):
     # prepare data
     preprocess_input = {
         'vgg16'      : lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
-        'resnet101'  : lambda x: keras.applications.resnet.preprocess_input(x, mode='tf'), #NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
+        'resnet101v2': lambda x: keras.applications.resnet_v2.preprocess_input(x, mode='tf'), #NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
     }[args.model_base] or None
 
     INPUT_SHAPE = (224, 224, 3)
@@ -78,8 +78,9 @@ def main(args):
     # prepare model
     model_base = {
         'vgg16'      : lambda: keras.applications.vgg16.VGG16 (input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
-        'resnet101'  : lambda: keras.applications.resnet.ResNet101(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
+        'resnet101v2': lambda: keras.applications.resnet_v2.ResNet101V2(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
     }[args.model_base]()
+    model_base.summary()
 
     model, train = {
         'tune_source': lambda: ( models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer), models.classic.train),
