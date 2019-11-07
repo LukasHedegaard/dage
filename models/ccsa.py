@@ -82,7 +82,7 @@ def model(
         keras.layers.BatchNormalization(momentum=0.9),
         keras.layers.Activation('relu'),
         keras.layers.Dropout(0.5),
-        keras.layers.Dense(128, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed'),
+        keras.layers.Dense(embed_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed'),
         keras.layers.BatchNormalization(momentum=0.9),
         keras.layers.Activation('relu'),
     ], name='dense_layers')
