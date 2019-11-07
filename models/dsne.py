@@ -96,7 +96,8 @@ def model(
     even_loss_weights=True,
     freeze_base=True,
 ):
-    embed_size = 128
+    # embed_size = 128
+    embed_size = 512
     
     in1 = keras.layers.Input(shape=input_shape, name='input_source')
     in2 = keras.layers.Input(shape=input_shape, name='input_target')
@@ -114,11 +115,12 @@ def model(
         keras.layers.Input(shape=model_base.layers[-1].output_shape[1:]),
         keras.layers.Dropout(0.25),
         keras.layers.Flatten(),
-        keras.layers.Dense(1024, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
+        # keras.layers.Dense(1024, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
+        keras.layers.Dense(4096, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
         keras.layers.BatchNormalization(momentum=0.9),
         keras.layers.Activation('relu'),
         keras.layers.Dropout(0.5),
-        keras.layers.Dense(128, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed'),
+        keras.layers.Dense(embed_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed'),
         keras.layers.BatchNormalization(momentum=0.9),
         keras.layers.Activation('relu'),
     ], name='dense_layers')
@@ -159,7 +161,7 @@ def loss(batch_size=16, embed_size=128, margin=1):
     return {
         'preds'  : keras.losses.categorical_crossentropy,
         'preds_1': keras.losses.categorical_crossentropy,
-        'aux_out': dnse_loss(batch_size=16, embed_size=128, margin=1)
+        'aux_out': dnse_loss(batch_size=16, embed_size=embed_size, margin=1)
     }
 
 def loss_weights(alpha=0.25, even=1):
