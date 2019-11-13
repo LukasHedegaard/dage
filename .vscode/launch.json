@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/run.py",
-            "args": ["--mode", "test"],
+            "args": ["--mode", "test", "--method", "dsne"],
             "console": "integratedTerminal"
         },
         {
@@ -29,14 +29,6 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: CCSA",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/run.py",
-            "args": ["--method", "ccsa"],
-            "console": "integratedTerminal"
-        },
-        {
             "name": "Python: Domain Adaption using CCSA",
             "type": "python",
             "request": "launch",
@@ -50,6 +42,14 @@
             "request": "launch",
             "program": "${workspaceFolder}/run.py",
             "args": ["--method", "dsne"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Domain Adaption using Homebrew",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "args": ["--method", "homebrew"],
             "console": "integratedTerminal"
         },
         {
