@@ -49,7 +49,7 @@ def main(args):
         'tune_both'  : lambda: ( ds['target']['val'], ds['target']['test'] ),
         'ccsa'       : lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ),
         'dsne'       : lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ),      
-        'homebrew'   : lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ),      
+        'dage'       : lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ),      
     }[args.method]()
 
     train_ds = {
@@ -63,7 +63,7 @@ def main(args):
                                                    target_ds=ds['target']['train']['ds'], 
                                                    ratio=args.ratio, 
                                                    shuffle_buffer_size=args.shuffle_buffer_size),
-        'homebrew'   : lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
+        'dage'       : lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
                                                    target_ds=ds['target']['train']['ds'], 
                                                    ratio=args.ratio, 
                                                    shuffle_buffer_size=args.shuffle_buffer_size),
@@ -93,7 +93,7 @@ def main(args):
         'tune_both'  : lambda: (  models.classic.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size), models.classic.train),
         'ccsa'       : lambda: (     models.ccsa.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size, alpha=args.alpha, even_loss_weights=args.even_loss_weights), models.ccsa.train),
         'dsne'       : lambda: (     models.dsne.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size, alpha=args.alpha, even_loss_weights=args.even_loss_weights, batch_size=args.batch_size), models.dsne.train),
-        'homebrew'   : lambda: ( models.homebrew.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size, alpha=args.alpha, even_loss_weights=args.even_loss_weights, batch_size=args.batch_size), models.homebrew.train),
+        'dage'       : lambda: ( models.dage.model(model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size, alpha=args.alpha, even_loss_weights=args.even_loss_weights, batch_size=args.batch_size), models.dage.train),
     }[args.method]()
 
     evaluate = {
@@ -102,7 +102,7 @@ def main(args):
         'tune_both'  : evaluation.evaluate,
         'ccsa'       : evaluation.evaluate_da_pair,
         'dsne'       : evaluation.evaluate_da_pair,
-        'homebrew'   : evaluation.evaluate_da_pair,
+        'dage'       : evaluation.evaluate_da_pair,
     }[args.method]
 
     if args.from_weights:
@@ -123,7 +123,7 @@ def main(args):
         'tune_both'  : 'val_acc',
         'ccsa'       : 'val_preds_acc',
         'dsne'       : 'val_preds_acc',
-        'homebrew'   : 'val_preds_acc',
+        'dage'       : 'val_preds_acc',
     }[args.method]
     fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor=monitor, verbose=args.verbose)
 
@@ -135,7 +135,7 @@ def main(args):
             'tune_both'  : partial(dsg.augment,      batch_size=args.batch_size),
             'ccsa'       : partial(dsg.augment_pair, batch_size=args.batch_size),
             'dsne'       : partial(dsg.augment_pair, batch_size=args.batch_size),
-            'homebrew'   : partial(dsg.augment_pair, batch_size=args.batch_size),
+            'dage'       : partial(dsg.augment_pair, batch_size=args.batch_size),
         }[args.method]
 
     # perform training and test
