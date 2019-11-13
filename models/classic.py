@@ -8,6 +8,8 @@ def model(
     output_shape,
     optimizer,
     freeze_base=True,
+    embed_size=128,
+    dense_size=1024
 ):
     if freeze_base:
         for layer in model_base.layers:
@@ -21,9 +23,9 @@ def model(
         model_base,
         keras.layers.Dropout(0.25),
         keras.layers.Flatten(),
-        keras.layers.Dense(1024, activation='relu', kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
+        keras.layers.Dense(dense_size, activation='relu', kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
         keras.layers.Dropout(0.5),
-        keras.layers.Dense(128, activation='relu', kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed'),
+        keras.layers.Dense(embed_size, activation='relu', kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed'),
         keras.layers.Dropout(0.5),
         keras.layers.Dense(output_shape, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits'),
         keras.layers.Activation('softmax', name='preds'),

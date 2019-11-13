@@ -59,9 +59,9 @@ def model(
     alpha=0.25,
     even_loss_weights=True,
     freeze_base=True,
-):
-    embed_size = 128
-    
+    embed_size=128,
+    dense_size=1024
+):    
     in1 = keras.layers.Input(shape=input_shape, name='input_source')
     in2 = keras.layers.Input(shape=input_shape, name='input_target')
 
@@ -78,7 +78,7 @@ def model(
         keras.layers.Input(shape=model_base.layers[-1].output_shape[1:]),
         keras.layers.Dropout(0.25),
         keras.layers.Flatten(),
-        keras.layers.Dense(1024, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
+        keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
         keras.layers.BatchNormalization(momentum=0.9),
         keras.layers.Activation('relu'),
         keras.layers.Dropout(0.5),

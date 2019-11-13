@@ -13,6 +13,8 @@ def parse_args():
      model_parser.add_argument('--alpha', type=float, default=0.25, help='Weighting for distance-based domain adaption losses. Default: 0.25')
      model_parser.add_argument('--even_loss_weights', type=int, default=1, help='Use even weighting for source and target losses. Default: 1')
      model_parser.add_argument('--freeze_base', type=int, default=1, help='Freeze base network. Default: 1')
+     model_parser.add_argument('--embed_size', type=int, default=128, help='Size of embedding layer. Default: 128')
+     model_parser.add_argument('--dense_size', type=int, default=1024, help='Size of first dense layer. Default: 1024')
      
      # train
      train_parser = parser.add_argument_group(description='Training')
