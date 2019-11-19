@@ -14,7 +14,6 @@ Dataset = tf.compat.v2.data.Dataset
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 DTYPE = tf.float32
 from scipy.io import savemat
-from functools import partial
 from gpu import setup_gpu
 import dataset_gen as dsg
 
@@ -39,8 +38,8 @@ def main(args):
     INPUT_SHAPE = (224, 224, 3)
 
     preprocess_input = {
-        'vgg16'      : partial(keras.applications.vgg16.preprocess_input, mode='tf'),
-        'resnet101v2': partial(keras.applications.resnet_v2.preprocess_input, mode='tf'), #NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
+        'vgg16'      : lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
+        'resnet101v2': lambda x: keras.applications.resnet_v2.preprocess_input(x, mode='tf'), #NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
     }[args.feature_extractor] or None
 
     feature_extractor = {
@@ -56,12 +55,12 @@ def main(args):
         ds_path = project_base_path / 'datasets' / 'Office31' / domain / 'images'
         data_paths = [str(p) for p in ds_path.glob('*/*.jpg')]
 
-        prep_image = dsg.make_image_prep(INPUT_SHAPE, preprocess_input)
-    
-        ds = Dataset.list_files(data_paths, shuffle=False) \
-            .map(prep_image, num_parallel_calls=AUTOTUNE) \
-            .batch(int(args.batch_size)) \
-            .prefetch(buffer_size=AUTOTUNE)
+        ds = dsg.dataset_from_paths(
+                data_paths, 
+                preprocess_input=preprocess_input,
+                shape=INPUT_SHAPE,
+            ).batch(int(args.batch_size)) \
+             .prefetch(buffer_size=AUTOTUNE)
 
         # Perform feature-extraction
         features = feature_extractor.predict_generator(ds, verbose=1)
