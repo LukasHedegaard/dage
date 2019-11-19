@@ -167,8 +167,14 @@ def model(
         for layer in model_base.layers[:-num_unfreeze_base]:
             layer.trainable = False
 
+    model_base_output_shape = model_base.layers[-1].output_shape
+    if type(model_base_output_shape) == list:
+        model_base_output_shape = model_base_output_shape[0]
+    if type(model_base_output_shape) == tuple:
+        model_base_output_shape = model_base_output_shape[1:]
+
     model_mid = keras.Sequential([
-        keras.layers.Input(shape=model_base.layers[-1].output_shape[1:]),
+        keras.layers.Input(shape=model_base_output_shape),
         keras.layers.Dropout(0.25),
         keras.layers.Flatten(),
         keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
