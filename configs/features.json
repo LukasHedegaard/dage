@@ -16,6 +16,6 @@
     },
     "resnet101v2": { 
         "mat_key": "data",
-        "shape": [5,5,2048]
+        "shape": [7,7,2048]
      }
 }
