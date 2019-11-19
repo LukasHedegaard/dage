@@ -21,13 +21,14 @@ def make_image_prep(
 ):
     shape = shape[:2]
     def prep(file_path):
-        fp = tf.constant(file_path)
-        img = tf.compat.v2.io.read_file(fp) # load the raw data from the file as a string
+        if isinstance(file_path, str):
+            file_path = tf.constant(file_path)
+        img = tf.compat.v2.io.read_file(file_path) # load the raw data from the file as a string
         img = tf.compat.v2.image.decode_jpeg(img, channels=3) # convert the compressed string to a 3D uint8 tensor
         img = tf.compat.v2.image.convert_image_dtype(img, DTYPE) # Use `convert_image_dtype` to convert to floats in the [0,1] range.
         if preprocess_input_fn:
             img = preprocess_input_fn(img*255) # preprocess input assumes input in [0,255] range.
-        img = tf.compat.v2.image.resize(img, shape[:2]) # resize the image to the desired size.
+        img = tf.compat.v2.image.resize(img, shape) # resize the image to the desired size.
         return img
     return prep
 
