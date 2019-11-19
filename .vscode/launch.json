@@ -53,6 +53,14 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Train on extracted features",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "args": ["--features", "vgg16", "--model_base", "none", "--augment", "0"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Current File (Integrated Terminal)",
             "type": "python",
             "request": "launch",

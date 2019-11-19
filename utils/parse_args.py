@@ -30,7 +30,14 @@ def parse_args():
      train_parser.add_argument('--batch_size', '-b', type=int, default=16, help='Batch size. Default: 16')
      train_parser.add_argument('--epochs', '-e', type=int, default=10, help='Number of epochs. Default: 10')
      train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
-     train_parser.add_argument('--augment', type=int, default=1, help='Activate augmentation. Default: 1')
+     train_parser.add_argument('--augment', type=int, default=0, help='Activate augmentation. Only works with features="images". Default: 0')
+     train_parser.add_argument('--features', type=str, default='images', 
+                              help='The input features to use. Default: raw. Options: '
+                                   'images: unprocessed JPG images. '
+                                   'sift: scale-invariant feature transform features.'
+                                   'decaf: features extracted through DeCaf network.'
+                                   'vgg16: features extracted through conv layers of a VGG16 network pretrained on ImageNet.'
+                                   'resnet101v2: features extracted through conv layers of a ResNet101v2 network pretrained on ImageNet.')
      train_parser.add_argument('--mode', type=str, default='train_and_test', 
                                    help='Modes: '
                                         'train: perform training, skip evaluation;'

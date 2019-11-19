@@ -1,0 +1,21 @@
+{
+    "images": { 
+        "shape": [224, 224, 3] 
+    },
+    "sift": { 
+        "mat_key": "histogram",
+        "shape": [1, 800] 
+    },
+    "decaf": { 
+        "mat_key": "fc6",
+        "shape": [4096, 1] 
+    },
+    "vgg16": { 
+        "mat_key": "data",
+        "shape": [7,7,512] 
+    },
+    "resnet101v2": { 
+        "mat_key": "data",
+        "shape": [5,5,2048]
+     }
+}

@@ -5,36 +5,75 @@ from typing import List, Union, Optional, Dict, Tuple, Callable
 import random
 from functools import lru_cache, partial
 import itertools
-from utils.io import load_json
+from utils.file_io import load_json
 import tensorflow as tf
 # import tensorflow_addons as tfa
 tf.compat.v1.enable_eager_execution()
 from math import pi as PI
+from scipy.io import loadmat
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
 DTYPE = tf.float32
 
+def make_image_prep(
+    shape=[224,224], 
+    preprocess_input_fn:Callable=None, 
+):
+    shape = shape[:2]
+    def prep(file_path):
+        fp = tf.constant(file_path)
+        img = tf.compat.v2.io.read_file(fp) # load the raw data from the file as a string
+        img = tf.compat.v2.image.decode_jpeg(img, channels=3) # convert the compressed string to a 3D uint8 tensor
+        img = tf.compat.v2.image.convert_image_dtype(img, DTYPE) # Use `convert_image_dtype` to convert to floats in the [0,1] range.
+        if preprocess_input_fn:
+            img = preprocess_input_fn(img*255) # preprocess input assumes input in [0,255] range.
+        img = tf.compat.v2.image.resize(img, shape) # resize the image to the desired size.
+        return img
+    return prep
+
+
+def make_mat_prep(
+    shape=[224,224], 
+    preprocess_input_fn:Callable=None, 
+):
+    def prep(file_path):
+        d = loadmat(file_path)
+        if preprocess_input_fn:
+            d = preprocess_input_fn(d) # should pick the right column from the dict above
+        return d
+    return prep
+
+
 def dataset_from_paths(
     data_paths: List[str],
     preprocess_input:Callable=None,
-    img_size=[224,224], 
+    shape=[224,224], 
     seed=1,
+    shuffle=True,
 ):
-    list_ds = Dataset.list_files(data_paths, shuffle=True, seed=seed)
     CLASS_NAMES = tf.constant(sorted(list(set([p.split('/')[-2] for p in data_paths]))))
+    data_type = Path(data_paths[0]).suffix
 
-    def process_path(file_path):
-        parts = tf.compat.v2.strings.split(file_path, '/') # convert the path to a list of path components
+    prep_dat = {
+        # '.jpg': lambda p, fn=make_image_prep(shape, preprocess_input): fn(tf.constant(p, dtype=tf.string)),
+        '.jpg': make_image_prep(shape, preprocess_input),
+        '.mat': make_mat_prep(shape, preprocess_input),
+    }[data_type]
+
+    def prep_label(file_path):
+        fp = tf.constant(file_path)
+        parts = tf.compat.v2.strings.split(fp, '/') # convert the path to a list of path components
         label = tf.equal(CLASS_NAMES, parts[-2]) # The second to last is the class-directory
-        img = tf.compat.v2.io.read_file(file_path) # load the raw data from the file as a string
-        img = tf.compat.v2.image.decode_jpeg(img, channels=3) # convert the compressed string to a 3D uint8 tensor
-        img = tf.compat.v2.image.convert_image_dtype(img, DTYPE) # Use `convert_image_dtype` to convert to floats in the [0,1] range.
-        if preprocess_input:
-            img = preprocess_input(img*255) # preprocess input assumes input in [0,255] range.
-        img = tf.compat.v2.image.resize(img, img_size) # resize the image to the desired size.
-        return img, label
+        return label
+        
+    def gen():
+        for fp in data_paths:
+            yield prep_dat(fp), prep_label(fp)
 
-    labeled_ds = list_ds.map(process_path, num_parallel_calls=AUTOTUNE)
+    output_types = (DTYPE, tf.bool)
+    output_shapes = (tf.TensorShape(shape), tf.TensorShape([len(CLASS_NAMES)]))
+
+    labeled_ds = Dataset.from_generator(gen, output_types, output_shapes)
     return labeled_ds
 
 
@@ -66,34 +105,34 @@ def prep_ds_train(dataset: Dataset, batch_size=16, cache=True, shuffle_buffer_si
 def dataset_from_dir(
     dir_path: Union[str, Path],
     preprocess_input:Callable=None,
-    img_size=[224,224], 
+    shape=[224,224], 
     seed=1
 ) -> Dataset :
     dir_path = Path(dir_path)
-    data_paths = [str(p) for p in dir_path.glob('*/*.jpg')]
-    return dataset_from_paths(data_paths, preprocess_input, img_size, seed), len(data_paths)
+    data_paths = [str(p) for suffix in ['jpg','mat'] for p in dir_path.glob('*/*'+suffix)]
+    return dataset_from_paths(data_paths, preprocess_input, shape, seed), len(data_paths)
 
 
 def balanced_dataset_split_from_dir(
     dir_path: Union[str, Path],
     samples_per_class: int,
     preprocess_input:Callable=None,
-    img_size=[224,224], 
+    shape=[224,224], 
     seed=1
 ) -> Tuple[Dataset, Dataset, int, int]:
     sampled_dataset, rest_dataset = [], []
     dir_path = Path(dir_path)
     class_paths = dir_path.glob('*')
     for class_path in class_paths:
-        tmp = [str(p) for p in class_path.glob('*.jpg')] 
+        tmp = [str(p) for suffix in ['jpg','mat'] for p in class_path.glob('*'+suffix)]
         random.seed(seed)
         random.shuffle(tmp)
         sampled_dataset.extend(tmp[:samples_per_class])
         rest_dataset.extend(tmp[samples_per_class:])
 
     return ( 
-        dataset_from_paths(sampled_dataset, preprocess_input, img_size, seed), 
-        dataset_from_paths(rest_dataset, preprocess_input, img_size, seed), 
+        dataset_from_paths(sampled_dataset, preprocess_input, shape, seed), 
+        dataset_from_paths(rest_dataset, preprocess_input, shape, seed), 
         len(sampled_dataset),
         len(rest_dataset),
     )
@@ -104,14 +143,14 @@ def balanced_dataset_tvt_split_from_dir(
     samples_per_train_class: int,
     samples_per_val_class: int,
     preprocess_input:Callable=None,
-    img_size=[224,224], 
+    shape=[224,224], 
     seed=1
 ) -> Tuple[Dataset, Dataset, int, int]:
     train_dataset, val_dataset, test_dataset = [], [], []
     dir_path = Path(dir_path)
     class_paths = dir_path.glob('*')
     for class_path in class_paths:
-        tmp = [str(p) for p in class_path.glob('*.jpg')] 
+        tmp = [str(p) for suffix in ['jpg','mat'] for p in class_path.glob('*'+suffix)]
         random.seed(seed)
         random.shuffle(tmp)
         train_dataset.extend(tmp[:samples_per_train_class])
@@ -119,9 +158,9 @@ def balanced_dataset_tvt_split_from_dir(
         test_dataset.extend(tmp[samples_per_train_class+samples_per_val_class:])
 
     return ( 
-        dataset_from_paths(train_dataset, preprocess_input, img_size, seed), 
-        dataset_from_paths(val_dataset, preprocess_input, img_size, seed), 
-        dataset_from_paths(test_dataset, preprocess_input, img_size, seed), 
+        dataset_from_paths(train_dataset, preprocess_input, shape, seed), 
+        dataset_from_paths(val_dataset, preprocess_input, shape, seed), 
+        dataset_from_paths(test_dataset, preprocess_input, shape, seed), 
         len(train_dataset),
         len(val_dataset),
         len(test_dataset),
@@ -132,8 +171,9 @@ def office31_datasets(
     source_name: str, 
     target_name: str, 
     preprocess_input:Callable=None,
-    img_size=[224,224], 
-    seed=1
+    shape=[224,224], 
+    seed=1,
+    features='images'
 ) -> Dict[str, Dict[str, Dict[str, Tuple[Dataset, int]]]]:
     ''' Create the datasets needed for evaluating the Office31 dataset
     Returns:
@@ -154,20 +194,19 @@ def office31_datasets(
     elif target_name not in name_mapping.values():
         raise ValueError('source_name must be one of {}'.format(name_mapping.items()))
 
-    dataset_configs = load_json(Path(__file__).parent.parent / 'experiment_configs' / 'office31.json')
+    project_base_path = Path(__file__).parent.parent
+    source_data_path = project_base_path / 'datasets' / 'Office31' / source_name / features
+    target_data_path = project_base_path / 'datasets' / 'Office31' / target_name / features
 
+    dataset_configs = load_json(project_base_path / 'configs' / 'splits.json')
     n_source_samples = dataset_configs[source_name]['source_samples']
     n_target_samples = dataset_configs[target_name]['target_samples']
     n_target_val_samples = dataset_configs[target_name]['target_val_samples']
 
-    project_base_path = Path(__file__).parent.parent
-    source_data_path = project_base_path / dataset_configs[source_name]['path']
-    target_data_path = project_base_path / dataset_configs[target_name]['path']
-
-    s_full, s_full_size         = dataset_from_dir(source_data_path, preprocess_input, img_size, seed)
-    s_train, _, s_train_size, _ = balanced_dataset_split_from_dir(source_data_path, n_source_samples, preprocess_input, img_size, seed)
+    s_full, s_full_size         = dataset_from_dir(source_data_path, preprocess_input, shape, seed)
+    s_train, _, s_train_size, _ = balanced_dataset_split_from_dir(source_data_path, n_source_samples, preprocess_input, shape, seed)
     t_train, t_val, t_test, t_train_size, t_val_size, t_test_size \
-        = balanced_dataset_tvt_split_from_dir(target_data_path, n_target_samples, n_target_val_samples, preprocess_input, img_size, seed)
+        = balanced_dataset_tvt_split_from_dir(target_data_path, n_target_samples, n_target_val_samples, preprocess_input, shape, seed)
 
     return {
         'source': {

@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 import tensorflow as tf
-# tf.compat.v1.enable_eager_execution() 
+tf.compat.v1.enable_eager_execution() 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 keras = tf.compat.v2.keras
 import models
@@ -9,7 +9,7 @@ import utils.dataset_gen as dsg
 from utils.callbacks import all as callbacks
 from utils.parse_args import parse_args
 import utils.evaluation as evaluation
-from utils.io import save_json
+from utils.file_io import save_json, load_json
 from utils.gpu import setup_gpu
 from functools import partial
 from timeit import default_timer as timer
@@ -26,22 +26,25 @@ def main(args):
     tensorboard_dir.mkdir(parents=True, exist_ok=True)
     config_path = outputs_dir / 'config.json'
     model_path = outputs_dir / 'model.json'
-    # pred_file_path = outputs_dir / 'predictions.csv'
     report_path = outputs_dir / 'report.json'
 
     save_json(args.__dict__, config_path)
+
+    features_config = load_json(Path('configs/features.json').absolute())
+
+    INPUT_SHAPE = tuple(features_config[args.features]["shape"])
+    CLASS_NAMES = dsg.office31_class_names()
+    OUTPUT_SHAPE = len(CLASS_NAMES)
 
     # prepare data
     preprocess_input = {
         'vgg16'      : lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
         'resnet101v2': lambda x: keras.applications.resnet_v2.preprocess_input(x, mode='tf'), #NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
+        'none'       : lambda x: x[features_config[args.features]["mat_key"]]
     }[args.model_base] or None
 
-    INPUT_SHAPE = (224, 224, 3)
-    CLASS_NAMES = dsg.office31_class_names()
-    OUTPUT_SHAPE = len(CLASS_NAMES)
 
-    ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, img_size=INPUT_SHAPE[:2], seed=args.seed)
+    ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=args.seed, features=args.features)
 
     val_ds, test_ds = {
         'tune_source': lambda: ( ds['target']['val'], ds['target']['test'] ),
@@ -84,6 +87,7 @@ def main(args):
     model_base = {
         'vgg16'      : lambda: keras.applications.vgg16.VGG16 (input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
         'resnet101v2': lambda: keras.applications.resnet_v2.ResNet101V2(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
+        'none'       : lambda i=keras.layers.Input(shape=INPUT_SHAPE): keras.models.Model(inputs=i, outputs=i),
     }[args.model_base]()
     model_base.summary()
 
@@ -129,6 +133,8 @@ def main(args):
 
     augment = lambda x: x
     if args.augment:
+        if args.features != 'images':
+            raise ValueError('augment=1 is only allowed for features="images"')
         augment = {
             'tune_source': partial(dsg.augment,      batch_size=args.batch_size),
             'tune_target': partial(dsg.augment,      batch_size=args.batch_size),
