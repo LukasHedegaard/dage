@@ -16,7 +16,7 @@ Dataset = tf.compat.v2.data.Dataset
 DTYPE = tf.float32
 
 def make_image_prep(
-    shape=[224,224], 
+    shape=[224,224,3], 
     preprocess_input_fn:Callable=None, 
 ):
     shape = shape[:2]
@@ -27,13 +27,13 @@ def make_image_prep(
         img = tf.compat.v2.image.convert_image_dtype(img, DTYPE) # Use `convert_image_dtype` to convert to floats in the [0,1] range.
         if preprocess_input_fn:
             img = preprocess_input_fn(img*255) # preprocess input assumes input in [0,255] range.
-        img = tf.compat.v2.image.resize(img, shape) # resize the image to the desired size.
+        img = tf.compat.v2.image.resize(img, shape[:2]) # resize the image to the desired size.
         return img
     return prep
 
 
 def make_mat_prep(
-    shape=[224,224], 
+    shape=[224,224,3], 
     preprocess_input_fn:Callable=None, 
 ):
     def prep(file_path):
@@ -47,7 +47,7 @@ def make_mat_prep(
 def dataset_from_paths(
     data_paths: List[str],
     preprocess_input:Callable=None,
-    shape=[224,224], 
+    shape=[224,224,3], 
     seed=1,
     shuffle=True,
 ):
@@ -105,7 +105,7 @@ def prep_ds_train(dataset: Dataset, batch_size=16, cache=True, shuffle_buffer_si
 def dataset_from_dir(
     dir_path: Union[str, Path],
     preprocess_input:Callable=None,
-    shape=[224,224], 
+    shape=[224,224,3], 
     seed=1
 ) -> Dataset :
     dir_path = Path(dir_path)
@@ -117,7 +117,7 @@ def balanced_dataset_split_from_dir(
     dir_path: Union[str, Path],
     samples_per_class: int,
     preprocess_input:Callable=None,
-    shape=[224,224], 
+    shape=[224,224,3], 
     seed=1
 ) -> Tuple[Dataset, Dataset, int, int]:
     sampled_dataset, rest_dataset = [], []
@@ -143,7 +143,7 @@ def balanced_dataset_tvt_split_from_dir(
     samples_per_train_class: int,
     samples_per_val_class: int,
     preprocess_input:Callable=None,
-    shape=[224,224], 
+    shape=[224,224,3], 
     seed=1
 ) -> Tuple[Dataset, Dataset, int, int]:
     train_dataset, val_dataset, test_dataset = [], [], []
@@ -171,7 +171,7 @@ def office31_datasets(
     source_name: str, 
     target_name: str, 
     preprocess_input:Callable=None,
-    shape=[224,224], 
+    shape=[224,224,3], 
     seed=1,
     features='images'
 ) -> Dict[str, Dict[str, Dict[str, Tuple[Dataset, int]]]]:
