@@ -1,3 +1,10 @@
+# make import from other packages work as expected
+if __name__ == "__main__" and not __package__:
+    from sys import path
+    from os.path import dirname as dir
+    path.append(dir(path[0]))
+    __package__ = "utils"
+
 from pathlib import Path
 import argparse
 import numpy as np
@@ -49,7 +56,7 @@ def main(args):
         ds_path = project_base_path / 'datasets' / 'Office31' / domain / 'images'
         data_paths = [str(p) for p in ds_path.glob('*/*.jpg')]
 
-        prep_image = dsg.make_image_prep(INPUT_SHAPE[:2], preprocess_input)
+        prep_image = dsg.make_image_prep(INPUT_SHAPE, preprocess_input)
     
         ds = Dataset.list_files(data_paths, shuffle=False) \
             .map(prep_image, num_parallel_calls=AUTOTUNE) \
