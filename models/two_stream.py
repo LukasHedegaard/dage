@@ -5,6 +5,7 @@ from functools import reduce
 from layers import Pair
 from losses import dummy_loss
 from models.common import freeze, get_output_shape, model_dense, model_preds
+from math import ceil
 
 
 def model(
@@ -76,8 +77,12 @@ def train(
     val_datasource=None, 
     val_datasource_size=None 
 ):
-    validation_steps = val_datasource_size//batch_size if val_datasource_size else None
-    steps_per_epoch = datasource_size//batch_size
+    validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
+    steps_per_epoch = ceil(datasource_size/batch_size)
+
+    if not val_datasource_size:
+        val_datasource = None
+        validation_steps = None
 
     model.fit( 
         datasource,
@@ -101,8 +106,12 @@ def train_flipping(
     val_datasource=None, 
     val_datasource_size=None 
 ):
-    validation_steps = val_datasource_size//batch_size if val_datasource_size else None
-    steps_per_epoch = datasource_size//batch_size
+    validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
+    steps_per_epoch = ceil(datasource_size/batch_size)
+
+    if not val_datasource_size:
+        val_datasource = None
+        validation_steps = None
 
     train_iter = iter(datasource)
     

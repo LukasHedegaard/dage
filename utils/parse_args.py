@@ -3,6 +3,9 @@ import argparse
 def parse_args():
      parser = argparse.ArgumentParser(description='Perform Supervised Domain Adaption')
 
+     info_parser = parser.add_argument_group(description='Info')
+     info_parser.add_argument('--experiment_id', type=str, default='', help='Experiment ID')
+
      os_parser = parser.add_argument_group(description='OS')
      os_parser.add_argument('--gpu_id', type=str, default='2', help='Which GPU to use. Default: 2')
      

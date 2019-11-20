@@ -43,8 +43,12 @@ def train(
     val_datasource=None, 
     val_datasource_size=None 
 ):
-    validation_steps = val_datasource_size//batch_size if val_datasource_size else None
-    steps_per_epoch = datasource_size//batch_size
+    validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
+    steps_per_epoch = ceil(datasource_size/batch_size)
+
+    if not val_datasource_size:
+        val_datasource = None
+        validation_steps = None
 
     model.fit( 
         x=datasource, 

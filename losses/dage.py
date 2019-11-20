@@ -60,7 +60,6 @@ def relate_source_target_pair(ys, yt, batch_size):
 
 # Loss maker
 def dage_loss(
-    batch_size,
     relation_type: LossRelation, 
     filter_type: LossFilter, 
     param:int=None
@@ -96,8 +95,7 @@ def dage_loss(
         xt = y_pred[:,1]
         θϕ = tf.transpose(tf.concat([xs,xt], axis=0))
 
-        # NB: We would like to access the batch size dynamically, but currently, Keras doesn't seem to allow the command below (gives Dimension(None) )
-        # batch_size = ys.get_shape()[0]
+        batch_size = tf.shape(ys)[0]
 
         # construct Weight matrix
         W, Wp = make_weights(xs, xt, ys, yt, batch_size)
@@ -121,8 +119,7 @@ def dage_loss(
     return loss_fn
 
 
-dage_full_loss = partial(
-    dage_loss,
+dage_full_loss = dage_loss(
     relation_type=LossRelation.ALL, 
     filter_type=LossFilter.ALL,
 )
