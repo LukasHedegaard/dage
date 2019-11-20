@@ -26,9 +26,11 @@ def parse_args():
                               help='Methods: '
                                    'tune_source: train one source, test on target;'
                                    'tune_target: train one target, test on target;'
-                                   'tune_both: train source and target, test on target; '
                                    'ccsa: contrastive loss; '
-                                   'dsne: modified-Hausdorffian distance loss')
+                                   'dsne: modified-Hausdorffian distance loss'
+                                   'dage_logits: dage loss inline in regular architecture'
+                                   'dage_aux_dense: dage loss using an aux dense layer'
+                                   )
      train_parser.add_argument('--source', type=str, default='A', help='Source domain')
      train_parser.add_argument('--target', type=str, default='D', help='Target domain')
      train_parser.add_argument('--batch_size', '-b', type=int, default=16, help='Batch size. Default: 16')

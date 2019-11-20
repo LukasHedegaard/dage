@@ -25,6 +25,14 @@ def model_preds(input_shape, output_shape):
     ], name='preds')
 
 
+def model_logits(input_shape, dense_size):
+    return keras.Sequential([
+        keras.layers.Input(shape=input_shape),
+        keras.layers.Dropout(0.5),
+        keras.layers.Dense(dense_size, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits'),
+    ], name='logits')
+
+
 def get_output_shape(model):
     output_shape = model.layers[-1].output_shape
     if type(output_shape) == list:
