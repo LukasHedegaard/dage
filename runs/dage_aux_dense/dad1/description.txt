@@ -1,0 +1,1 @@
+DAGE method on two-stream architecture with an aux dense layer. Here, we experiment with varying the size of this aux dense layer, thus varying the target dimensionality of the graph embedding.
