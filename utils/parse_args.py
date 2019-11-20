@@ -10,11 +10,12 @@ def parse_args():
      model_parser = parser.add_argument_group(description='Model')
      model_parser.add_argument('--model_base', type=str, default='vgg16', help='Feature extractor for model. Default: vgg16')
      model_parser.add_argument('--from_weights', type=str, default=None, help='Path to pretrained model weights')
-     model_parser.add_argument('--alpha', type=float, default=0.25, help='Weighting for distance-based domain adaption losses. Default: 0.25')
-     model_parser.add_argument('--even_loss_weights', type=int, default=1, help='Use even weighting for source and target losses. Default: 1')
+     model_parser.add_argument('--loss_alpha', type=float, default=0.25, help='Weighting for distance-based domain adaption losses. Default: 0.25')
+     model_parser.add_argument('--loss_weights_even', type=int, default=1, help='Use even weighting for source and target losses. Default: 1')
      model_parser.add_argument('--freeze_base', type=int, default=1, help='Freeze base network. Default: 1')
      model_parser.add_argument('--embed_size', type=int, default=128, help='Size of embedding layer. Default: 128')
      model_parser.add_argument('--dense_size', type=int, default=1024, help='Size of first dense layer. Default: 1024')
+     model_parser.add_argument('--aux_dense_size', type=int, default=31, help='Size of aux dense layer. Default: 31')
      
      # train
      train_parser = parser.add_argument_group(description='Training')

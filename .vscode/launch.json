@@ -57,7 +57,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/run.py",
-            "args": ["--features", "vgg16", "--model_base", "none", "--augment", "0", "--method", "ccsa"],
+            "args": ["--features", "vgg16", "--model_base", "none", "--augment", "0", "--method", "dage_aux_dense"],
             "console": "integratedTerminal"
         },
         {
