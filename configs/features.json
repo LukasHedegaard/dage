@@ -2,7 +2,7 @@
     "images": { 
         "shape": [224, 224, 3] 
     },
-    "sift": { 
+    "surf": { 
         "mat_key": "histogram",
         "shape": [1, 800] 
     },
