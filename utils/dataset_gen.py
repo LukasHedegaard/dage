@@ -53,12 +53,13 @@ def dataset_from_paths(
     shuffle=True,
 ):
     CLASS_NAMES = tf.constant(sorted(list(set([p.split('/')[-2] for p in data_paths]))))
-    data_type = Path(data_paths[0]).suffix
+    data_type = Path(data_paths[0]).suffix if data_paths else 'none'
 
     prep_dat = {
         # '.jpg': lambda p, fn=make_image_prep(shape, preprocess_input): fn(tf.constant(p, dtype=tf.string)),
         '.jpg': make_image_prep(shape, preprocess_input),
         '.mat': make_mat_prep(shape, preprocess_input),
+        'none': lambda x: x
     }[data_type]
 
     def prep_label(file_path):
@@ -304,7 +305,7 @@ def da_pair_dataset(
                 mdl_outs[2]: target_ds.output_types[1]
               })
 
-    mix_ds = Dataset.from_generator(gen_ratio, types, shapes).shuffle(buffer_size=shuffle_buffer_size)
+    mix_ds = Dataset.from_generator(gen_ratio, types, shapes)#.shuffle(buffer_size=shuffle_buffer_size)
     return {
         'ds': mix_ds,
         'size':size_ds
