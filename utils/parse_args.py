@@ -35,7 +35,7 @@ def parse_args():
      train_parser.add_argument('--features', type=str, default='images', 
                               help='The input features to use. Default: raw. Options: '
                                    'images: unprocessed JPG images. '
-                                   'sift: scale-invariant feature transform features.'
+                                   'surf: speeded-up robust features.'
                                    'decaf: features extracted through DeCaf network.'
                                    'vgg16: features extracted through conv layers of a VGG16 network pretrained on ImageNet.'
                                    'resnet101v2: features extracted through conv layers of a ResNet101v2 network pretrained on ImageNet.')
