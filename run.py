@@ -20,7 +20,7 @@ def main(args):
         setup_gpu(args.gpu_id, args.verbose)
 
     # documentation setup
-    outputs_dir = Path(__file__).parent / 'runs' / '{}_{}_{}_{}'.format( datetime.now().strftime("%Y%m%d%H%M%S"), args.source, args.target, args.method )
+    outputs_dir = Path(__file__).parent / 'runs' / args.method / args.experiment_id / '{}{}_{}_{}'.format( args.source, args.target, args.seed, datetime.now().strftime("%Y%m%d%H%M%S"))
     checkpoints_dir = outputs_dir / 'checkpoints'
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
     tensorboard_dir = outputs_dir / 'logs'
@@ -48,21 +48,16 @@ def main(args):
     ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=args.seed, features=args.features)
 
     val_ds, test_ds = {
-        **dict.fromkeys(['tune_source', 'tune_target'], 
-                        lambda: ( ds['target']['val'], ds['target']['test'] ) ),
-        **dict.fromkeys(['ccsa', 'dsne', 'dage', 'dage_aux_dense'], 
-                        lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ) ),
+        **{ k: lambda: ( ds['target']['val'], ds['target']['test'] )                                                         for k in ['tune_source', 'tune_target']},
+        **{ k: lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ) for k in ['ccsa', 'dsne', 'dage', 'dage_aux_dense']},
     }[args.method]()
 
 
     train_ds = {
         'tune_source': lambda: ds['source']['full'],
         'tune_target': lambda: ds['target']['train'],
-        **dict.fromkeys(['ccsa', 'dsne', 'dage', 'dage_aux_dense'], 
-                        lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], 
-                                                   target_ds=ds['target']['train']['ds'], 
-                                                   ratio=args.ratio, 
-                                                   shuffle_buffer_size=args.shuffle_buffer_size) ),
+        **{ k: lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], target_ds=ds['target']['train']['ds'], ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
+            for k in ['ccsa', 'dsne', 'dage', 'dage_aux_dense'] },
     }[args.method]()
 
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size), test_ds['size'])
@@ -87,60 +82,26 @@ def main(args):
     aux_loss = {
         'dummy': losses.dummy,
         'ccsa' : losses.contrastive_loss,
-        'dsne' : losses.dnse_loss(batch_size=args.batch_size, embed_size=args.embed_size, margin=1),
-        **dict.fromkeys(['dage', 'dage_aux_dense'], 
-                        losses.dage_full_loss(batch_size=args.batch_size)),
-        **dict.fromkeys(['tune_source', 'tune_target'], 
-                        losses.dummy_loss),
+        'dsne' : losses.dnse_loss(margin=1),
+        **{ k: losses.dage_full_loss for k in ['dage', 'dage_aux_dense']},
+        **{ k: losses.dummy_loss for k in ['tune_source', 'tune_target']},
     }[args.method]
 
-    model, train, evaluate = {
-        **dict.fromkeys(['tune_source', 'tune_target'], 
-                        lambda: ( models.single_stream.model(model_base=model_base, 
-                                                             input_shape=INPUT_SHAPE, 
-                                                             output_shape=OUTPUT_SHAPE, 
-                                                             freeze_base=args.freeze_base, 
-                                                             optimizer=optimizer, 
-                                                             dense_size=args.dense_size, 
-                                                             embed_size=args.embed_size), 
-                                  models.single_stream.train,
-                                  evaluation.evaluate ) ),
-        **dict.fromkeys(['ccsa', 'dsne', 'dage'], 
-                        lambda: ( models.two_stream.model(model_base=model_base,
-                                                          input_shape=INPUT_SHAPE,
-                                                          output_shape=OUTPUT_SHAPE,
-                                                          freeze_base=args.freeze_base,
-                                                          dense_size=args.dense_size,
-                                                          embed_size=args.embed_size,
-                                                          optimizer=optimizer,
-                                                          batch_size=args.batch_size,
-                                                          aux_loss=aux_loss,
-                                                          loss_alpha=args.loss_alpha,
-                                                          loss_weights_even=args.loss_weights_even),
-                                  models.two_stream.train,
-                                  evaluation.evaluate_da_pair ) ),
-        **dict.fromkeys(['dage_aux_dense'], 
-                        lambda: ( models.two_stream_aux_dense.model(model_base=model_base,
-                                                                    input_shape=INPUT_SHAPE,
-                                                                    output_shape=OUTPUT_SHAPE,
-                                                                    freeze_base=args.freeze_base,
-                                                                    dense_size=args.dense_size,
-                                                                    embed_size=args.embed_size,
-                                                                    aux_dense_size=args.aux_dense_size,
-                                                                    optimizer=optimizer,
-                                                                    batch_size=args.batch_size,
-                                                                    aux_loss=aux_loss,
-                                                                    loss_alpha=args.loss_alpha,
-                                                                    loss_weights_even=args.loss_weights_even),
-                                  models.two_stream_aux_dense.train,
-                                  evaluation.evaluate_da_pair ) ),
+    model, train = {
+        **{ k: lambda: (models.single_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size), 
+                        models.single_stream.train 
+                        ) for k in ['tune_source', 'tune_target'] },
+        **{ k: lambda: (models.two_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
+                        models.two_stream.train
+                        ) for k in ['ccsa', 'dsne', 'dage'] },
+        **{ k: lambda: (models.two_stream_aux_dense.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, aux_dense_size=args.aux_dense_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
+                        models.two_stream_aux_dense.train
+                        ) for k in ['dage_aux_dense'] },
     }[args.method]()
 
     evaluate = {
-        **dict.fromkeys(['tune_source', 'tune_target'], 
-                        evaluation.evaluate ),
-        **dict.fromkeys(['ccsa', 'dsne', 'dage', 'dage_aux_dense'],
-                        evaluation.evaluate_da_pair ),
+        **{k: evaluation.evaluate for k in ['tune_source', 'tune_target']},
+        **{k: evaluation.evaluate_da_pair for k in ['ccsa', 'dsne', 'dage', 'dage_aux_dense']},
     }[args.method]
 
     if args.from_weights:
@@ -154,10 +115,8 @@ def main(args):
         f.write(model.to_json())
 
     monitor = {
-        **dict.fromkeys(['tune_source', 'tune_target'], 
-                        'val_acc'),
-        **dict.fromkeys(['ccsa', 'dsne', 'dage', 'dage_aux_dense'], 
-                        'val_preds_acc'),
+        **{k: 'val_acc' for k in ['tune_source', 'tune_target']},
+        **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage', 'dage_aux_dense']},
     }[args.method]
 
     fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor=monitor, verbose=args.verbose)
@@ -167,10 +126,8 @@ def main(args):
         if args.features != 'images':
             raise ValueError('augment=1 is only allowed for features="images"')
         augment = {
-            **dict.fromkeys(['tune_source', 'tune_target'], 
-                            partial(dsg.augment,      batch_size=args.batch_size)),
-            **dict.fromkeys(['ccsa', 'dsne', 'dage', 'dage_aux_dense'], 
-                            partial(dsg.augment_pair, batch_size=args.batch_size)),
+            **{k: partial(dsg.augment, batch_size=args.batch_size) for k in ['tune_source', 'tune_target']},
+            **{k: partial(dsg.augment_pair, batch_size=args.batch_size) for k in ['ccsa', 'dsne', 'dage', 'dage_aux_dense']},
         }[args.method]
 
     # perform training and test
