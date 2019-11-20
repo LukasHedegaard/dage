@@ -33,5 +33,5 @@ mv ./datasets/Office31/dslr/interest_points/ ./datasets/Office31/dslr/surf/
 
 mv ./datasets ../datasets
 
-python3 ../utils/feature_gen.py --feature_extractor vgg16
-python3 ../utils/feature_gen.py --feature_extractor resnet101v2
+python3 ../utils/feature_gen.py --feature_extractor vgg16 --batch_size 12
+python3 ../utils/feature_gen.py --feature_extractor resnet101v2 --batch_size 12
