@@ -1,0 +1,1 @@
+CCSA method trained on pre-extracted vgg16 features.
