@@ -79,12 +79,13 @@ def dataset_from_paths(
     return labeled_ds
 
 
-def prep_ds(dataset: Dataset, batch_size=16, cache:str=None):
+def prep_ds(dataset: Dataset, batch_size=16, cache:str=None, shuffle_buffer_size=1000, seed=None):
     if cache:
         if isinstance(cache, str):
             dataset = dataset.cache(cache)
         else:
             dataset = dataset.cache() #pylint: disable=no-member
+    dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
     dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(buffer_size=AUTOTUNE)
     return dataset
