@@ -60,9 +60,9 @@ def main(args):
             for k in ['ccsa', 'dsne', 'dage', 'dage_aux_dense'] },
     }[args.method]()
 
-    test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size), test_ds['size'])
-    val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size), val_ds['size'])
-    train_ds = (dsg.prep_ds_train(dataset=train_ds['ds'], batch_size=args.batch_size), train_ds['size'])
+    test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), test_ds['size'])
+    val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), val_ds['size'])
+    train_ds = (dsg.prep_ds_train(dataset=train_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), train_ds['size'])
 
     # prepare optimizer
     optimizer = {
