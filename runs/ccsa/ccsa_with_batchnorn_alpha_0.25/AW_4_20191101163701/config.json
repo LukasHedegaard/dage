@@ -1,0 +1,20 @@
+{
+    "alpha": 0.25,
+    "augment": 1,
+    "batch_size": 16,
+    "epochs": 20,
+    "freeze_base": 1,
+    "from_weights": null,
+    "gpu_id": "2",
+    "learning_rate": 0.001,
+    "method": "ccsa",
+    "mode": "train_and_test",
+    "model_base": "vgg16",
+    "optimizer": "adam",
+    "ratio": 1,
+    "seed": 4,
+    "shuffle_buffer_size": 5000,
+    "source": "A",
+    "target": "W",
+    "verbose": 1
+}
