@@ -24,12 +24,18 @@ def parse_args():
      train_parser = parser.add_argument_group(description='Training')
      train_parser.add_argument('--method', type=str, default='tune_source',
                               help='Methods: '
-                                   'tune_source: train one source, test on target;'
-                                   'tune_target: train one target, test on target;'
-                                   'ccsa: contrastive loss; '
-                                   'dsne: modified-Hausdorffian distance loss'
-                                   'dage_logits: dage loss inline in regular architecture'
-                                   'dage_aux_dense: dage loss using an aux dense layer'
+                                   'tune_source: Train one source, test on target. Should be used with single_stream architeture;'
+                                   'tune_target: Train one target, test on target. Should be used with single_stream architeture;'
+                                   'ccsa: Contrastive loss; Should be used with two_stream architeture'
+                                   'dsne: Modified-Hausdorffian distance loss. Should be used with two_stream architeture;'
+                                   'dage_full: Graph embedding loss with full weight matrix accross domains. Should be used with two_stream architeture;'
+                                   )
+     train_parser.add_argument('--architecture', type=str, default='single_stream',
+                              help='Architectures: '
+                                   'single_stream: Single stream: model_base -> Two dense layers with Relu -> classification laye;.'
+                                   'two_stream_pair_embeds: Two streams: model_base -> Two dense layers with Relu -> a: aux output collecting both streams, b: -> Dense & softmax (eval for each stream);'
+                                   'two_stream_pair_logits: Two streams: model_base -> Two dense layers with Relu -> Dense (no activation) -> a: aux output collecting both streams, b: softmax (eval for each stream);'
+                                   'two_stream_pair_aux_dense: Two streams: model_base -> Two dense layers with Relu -> a: Dense & softmax (eval for each stream), b: Dense (no activation) -> aux output collecting both streams;'
                                    )
      train_parser.add_argument('--source', type=str, default='A', help='Source domain')
      train_parser.add_argument('--target', type=str, default='D', help='Target domain')

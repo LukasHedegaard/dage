@@ -49,7 +49,7 @@ def main(args):
 
     val_ds, test_ds = {
         **{ k: lambda: ( ds['target']['val'], ds['target']['test'] )                                                         for k in ['tune_source', 'tune_target']},
-        **{ k: lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ) for k in ['ccsa', 'dsne', 'dage_logits', 'dage_aux_dense']},
+        **{ k: lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ) for k in ['ccsa', 'dsne', 'dage_full']},
     }[args.method]()
 
 
@@ -57,7 +57,7 @@ def main(args):
         'tune_source': lambda: ds['source']['full'],
         'tune_target': lambda: ds['target']['train'],
         **{ k: lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], target_ds=ds['target']['train']['ds'], ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
-            for k in ['ccsa', 'dsne', 'dage_logits', 'dage_aux_dense'] },
+            for k in ['ccsa', 'dsne', 'dage_full'] },
     }[args.method]()
 
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), test_ds['size'])
@@ -83,28 +83,24 @@ def main(args):
         'dummy': losses.dummy,
         'ccsa' : losses.contrastive_loss,
         'dsne' : losses.dnse_loss(margin=1),
-        **{ k: losses.dage_full_loss for k in ['dage_logits', 'dage_aux_dense']},
+        'dage_full': losses.dage_full_loss,
         **{ k: losses.dummy_loss for k in ['tune_source', 'tune_target']},
     }[args.method]
 
     model, train = {
-        **{ k: lambda: (models.single_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size), 
-                        models.single_stream.train 
-                        ) for k in ['tune_source', 'tune_target'] },
-        **{ k: lambda: (models.two_stream_early_pair.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
-                        models.two_stream_early_pair.train
-                        ) for k in ['ccsa', 'dsne'] },
-        **{ k: lambda: (models.two_stream_late_pair.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
-                        models.two_stream_late_pair.train
-                        ) for k in ['dage_logits'] },
-        **{ k: lambda: (models.two_stream_aux_dense.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, aux_dense_size=args.aux_dense_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
-                        models.two_stream_aux_dense.train
-                        ) for k in ['dage_aux_dense'] },
-    }[args.method]()
+        'single_stream'         : lambda :( models.single_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size), 
+                                            models.single_stream.train ),
+        'two_stream_pair_embeds': lambda :( models.two_stream_pair_embeds.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
+                                            models.two_stream_pair_embeds.train ),
+        'two_stream_pair_logits': lambda :( models.two_stream_pair_logits.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
+                                            models.two_stream_pair_logits.train ),
+        'two_stream_aux_denses' : lambda :( models.two_stream_pair_aux_dense.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, aux_dense_size=args.aux_dense_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
+                                            models.two_stream_pair_aux_dense.train ),
+    }[args.architecture]()
 
     evaluate = {
         **{k: evaluation.evaluate for k in ['tune_source', 'tune_target']},
-        **{k: evaluation.evaluate_da_pair for k in ['ccsa', 'dsne', 'dage_logits', 'dage_aux_dense']},
+        **{k: evaluation.evaluate_da_pair for k in ['ccsa', 'dsne', 'dage_full']},
     }[args.method]
 
     if args.from_weights:
@@ -119,7 +115,7 @@ def main(args):
 
     monitor = {
         **{k: 'val_acc' for k in ['tune_source', 'tune_target']},
-        **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage_logits', 'dage_aux_dense']},
+        **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage_full']},
     }[args.method]
 
     fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor=monitor, verbose=args.verbose)
@@ -130,7 +126,7 @@ def main(args):
             raise ValueError('augment=1 is only allowed for features="images"')
         augment = {
             **{k: partial(dsg.augment, batch_size=args.batch_size) for k in ['tune_source', 'tune_target']},
-            **{k: partial(dsg.augment_pair, batch_size=args.batch_size) for k in ['ccsa', 'dsne', 'dage_logits', 'dage_aux_dense']},
+            **{k: partial(dsg.augment_pair, batch_size=args.batch_size) for k in ['ccsa', 'dsne', 'dage_full']},
         }[args.method]
 
     # perform training and test

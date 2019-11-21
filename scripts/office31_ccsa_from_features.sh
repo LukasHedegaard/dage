@@ -3,8 +3,8 @@
 DESCRIPTION="CCSA method trained on pre-extracted vgg16 features."
 
 EXPERIMENT_ID=ccsa_from_feat
-GPU_ID=1
 METHOD=ccsa
+ARCHITECTURE=two_stream_pair_logits
 MODEL_BASE=none
 FEATURES=vgg16
 EPOCHS=20
@@ -12,6 +12,7 @@ AUGMENT=0
 LOSS_WEIGHTS_EVEN=0
 LOSS_ALPHA=0.25
 BATCH_SIZE=256
+GPU_ID=1
 
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
@@ -26,7 +27,7 @@ do
         do
             if [ $SOURCE != $TARGET ]
             then
-                python3 run.py --method $METHOD --source $SOURCE --target $TARGET --model_base $MODEL_BASE --epochs $EPOCHS --seed $SEED --augment $AUGMENT --loss_alpha $LOSS_ALPHA --loss_weights_even $LOSS_WEIGHTS_EVEN --batch_size $BATCH_SIZE --gpu_id $GPU_ID --features $FEATURES --experiment_id $EXPERIMENT_ID
+                python3 run.py --method $METHOD --architecture $ARCHITECTURE --source $SOURCE --target $TARGET --model_base $MODEL_BASE --epochs $EPOCHS --seed $SEED --augment $AUGMENT --loss_alpha $LOSS_ALPHA --loss_weights_even $LOSS_WEIGHTS_EVEN --batch_size $BATCH_SIZE --gpu_id $GPU_ID --features $FEATURES --experiment_id $EXPERIMENT_ID
             fi
         done
     done
