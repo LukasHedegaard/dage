@@ -21,7 +21,7 @@ DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 mkdir $DIR_NAME -p
 echo $DESCRIPTION > $DIR_NAME/description.txt
 
-for BATCH_SIZE in 16 4096 #64 256 1024
+for BATCH_SIZE in 8 16 32 64 128 64 256 1024 4096
 do
     for SEED in 0 1 2 3 4
     do
