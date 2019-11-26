@@ -26,7 +26,7 @@ def string2weight_type(s):
 # Util
 def str2enum(s, E):
     if isinstance(s, str):
-        return E[s]
+        return E[s.upper()]
     elif isinstance(s, E):
         return s
     else:
