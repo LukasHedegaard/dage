@@ -36,11 +36,12 @@ def relate_source_target(ys, yt, batch_size):
     W_all, Wp_all = relate_all(ys, yt, batch_size)
 
     N = 2*batch_size 
-    i = tf.constant([[False,True],[True,False]], dtype=tf.bool)
-    for ax in range(2):
-        i = K.repeat_elements(i, N//2, axis=ax)
+    tile_size = [batch_size, batch_size]
 
-    zeros = tf.zeros([N,N],dtype=tf.bool)
+    i = tf.concat([ tf.concat([tf.zeros(tile_size, dtype=tf.bool), tf.ones(tile_size, dtype=tf.bool)], axis=0),
+                    tf.concat([tf.ones(tile_size, dtype=tf.bool), tf.zeros(tile_size, dtype=tf.bool)], axis=0) ], axis=1 )
+
+    zeros = tf.zeros([N,N], dtype=tf.bool)
     W = tf.where(i, W_all, zeros)
     Wp = tf.where(i, Wp_all, zeros)
 
@@ -121,5 +122,15 @@ def dage_loss(
 
 dage_full_loss = dage_loss(
     relation_type=LossRelation.ALL, 
+    filter_type=LossFilter.ALL,
+)
+
+dage_full_across_loss = dage_loss(
+    relation_type=LossRelation.SOURCE_TARGET, 
+    filter_type=LossFilter.ALL,
+)
+
+dage_pair_across_loss = dage_loss(
+    relation_type=LossRelation.SOURCE_TARGET_PAIR, 
     filter_type=LossFilter.ALL,
 )
