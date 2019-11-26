@@ -49,7 +49,7 @@ def main(args):
 
     val_ds, test_ds = {
         **{ k: lambda: ( ds['target']['val'], ds['target']['test'] )                                                         for k in ['tune_source', 'tune_target']},
-        **{ k: lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ) for k in ['ccsa', 'dsne', 'dage_full']},
+        **{ k: lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ) for k in ['ccsa', 'dsne', 'dage_full', 'dage_full_across', 'dage_pair_across']},
     }[args.method]()
 
 
@@ -57,7 +57,7 @@ def main(args):
         'tune_source': lambda: ds['source']['full'],
         'tune_target': lambda: ds['target']['train'],
         **{ k: lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], target_ds=ds['target']['train']['ds'], ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
-            for k in ['ccsa', 'dsne', 'dage_full'] },
+            for k in ['ccsa', 'dsne', 'dage_full', 'dage_full_across', 'dage_pair_across'] },
     }[args.method]()
 
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), test_ds['size'])
@@ -84,6 +84,8 @@ def main(args):
         'ccsa' : losses.contrastive_loss,
         'dsne' : losses.dnse_loss(margin=1),
         'dage_full': losses.dage_full_loss,
+        'dage_full_across': losses.dage_full_across_loss,
+        'dage_pair_across': losses.dage_pair_across_loss,
         **{ k: losses.dummy_loss for k in ['tune_source', 'tune_target']},
     }[args.method]
 
@@ -100,7 +102,7 @@ def main(args):
 
     evaluate = {
         **{k: evaluation.evaluate for k in ['tune_source', 'tune_target']},
-        **{k: evaluation.evaluate_da_pair for k in ['ccsa', 'dsne', 'dage_full']},
+        **{k: evaluation.evaluate_da_pair for k in ['ccsa', 'dsne', 'dage_full', 'dage_full_across', 'dage_pair_across']},
     }[args.method]
 
     if args.from_weights:
@@ -115,7 +117,7 @@ def main(args):
 
     monitor = {
         **{k: 'val_acc' for k in ['tune_source', 'tune_target']},
-        **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage_full']},
+        **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage_full', 'dage_full_across', 'dage_pair_across']},
     }[args.method]
 
     fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor=monitor, verbose=args.verbose)
@@ -126,7 +128,7 @@ def main(args):
             raise ValueError('augment=1 is only allowed for features="images"')
         augment = {
             **{k: partial(dsg.augment, batch_size=args.batch_size) for k in ['tune_source', 'tune_target']},
-            **{k: partial(dsg.augment_pair, batch_size=args.batch_size) for k in ['ccsa', 'dsne', 'dage_full']},
+            **{k: partial(dsg.augment_pair, batch_size=args.batch_size) for k in ['ccsa', 'dsne', 'dage_full', 'dage_full_across', 'dage_pair_across']},
         }[args.method]
 
     # perform training and test
