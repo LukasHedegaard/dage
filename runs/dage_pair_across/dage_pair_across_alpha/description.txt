@@ -1,0 +1,1 @@
+DAGE loss with pairwise connections across domains (none within).
