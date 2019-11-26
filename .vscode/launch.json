@@ -45,11 +45,24 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: Domain Adaption using Homebrew",
+            "name": "Python: Domain Adaption using DAGE",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/run.py",
-            "args": ["--method", "homebrew"],
+            "args": [
+                "--method", "dage",
+                "--architecture", "two_stream_pair_embeds" ,
+                "--source", "A" ,
+                "--target", "D" ,
+                "--model_base", "none" ,
+                "--features", "vgg16" ,
+                "--connection_type", "SOURCE_TARGET" ,
+                "--connection_filter_type", "KFN" ,
+                "--penalty_connection_filter_type", "KNN" ,
+                "--batch_size", "16" ,
+                "--experiment_id", "debug" ,
+                "--weight_type", "INDICATOR",
+            ],
             "console": "integratedTerminal"
         },
         {
