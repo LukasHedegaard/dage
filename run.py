@@ -81,16 +81,16 @@ def main(args):
 
     aux_loss = {
         **{ k: losses.dummy_loss for k in ['tune_source', 'tune_target']},
-        'dummy': losses.dummy,
-        'ccsa' : losses.contrastive_loss,
-        'dsne' : losses.dnse_loss(margin=1),
-        'dage' : losses.dage_loss(connection_type=args.connection_type,
-                                  weight_type=args.weight_type,
-                                  filter_type=args.connection_filter_type,
-                                  penalty_filter_type=args.penalty_connection_filter_type,
-                                  filter_param=args.connection_filter_param,
-                                  penalty_filter_param=args.penalty_connection_filter_param ),
-    }[args.method]
+        'dummy': lambda : losses.dummy,
+        'ccsa' : lambda : losses.contrastive_loss,
+        'dsne' : lambda : losses.dnse_loss(margin=1),
+        'dage' : lambda : losses.dage_loss( connection_type=args.connection_type,
+                                            weight_type=args.weight_type,
+                                            filter_type=args.connection_filter_type,
+                                            penalty_filter_type=args.penalty_connection_filter_type,
+                                            filter_param=args.connection_filter_param,
+                                            penalty_filter_param=args.penalty_connection_filter_param ),
+    }[args.method]()
 
     model, train = {
         'single_stream'         : lambda :( models.single_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size), 
