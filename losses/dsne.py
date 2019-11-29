@@ -1,18 +1,6 @@
 import tensorflow as tf
 from utils.dataset_gen import DTYPE
 
-# def padded(t, shape, pad_val=0):
-#     def pad_up_to(t, max_in_dims, constant_values=0):
-#         s = tf.shape(t)
-#         paddings = [[0, m-s[i]] for (i,m) in enumerate(max_in_dims)]
-#         return tf.pad(t, paddings, 'CONSTANT', constant_values=0)
-
-#     return tf.cond(tf.reduce_any(tf.less(tf.shape(t), shape)), true_fn=lambda: pad_up_to(t, shape, pad_val), false_fn=lambda: t)
-
-# def pad_to_batch(t, batch_size, pad_val=0):
-#     shape = (batch_size, *[s.value for s in t.shape[1:]])
-#     return padded(t,shape,pad_val)
-
 
 def dnse_loss(
     margin=1

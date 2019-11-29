@@ -47,17 +47,21 @@ def main(args):
 
     ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=args.seed, features=args.features)
 
-    val_ds, test_ds = {
-        **{ k: lambda: ( ds['target']['val'], ds['target']['test'] )                                                         for k in ['tune_source', 'tune_target']},
-        **{ k: lambda: ( dsg.da_pair_repeat_dataset(ds['target']['val']), dsg.da_pair_repeat_dataset(ds['target']['test']) ) for k in ['ccsa', 'dsne', 'dage']},
+    val_ds= {
+        **{ k: lambda: ds['target']['val']                             for k in ['tune_source', 'tune_target']},
+        **{ k: lambda: dsg.da_pair_repeat_dataset(ds['target']['val']) for k in ['ccsa', 'dsne', 'dage']},
+        **{ k: lambda: dsg.da_pair_alt_repeat_dataset(ds['target']['val']) for k in ['dage_a']},
     }[args.method]()
 
+    test_ds = ds['target']['test']
 
     train_ds = {
         'tune_source': lambda: ds['source']['full'],
         'tune_target': lambda: ds['target']['train'],
         **{ k: lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], target_ds=ds['target']['train']['ds'], ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
             for k in ['ccsa', 'dsne', 'dage'] },
+        **{ k: lambda: dsg.da_pair_alt_dataset(source_ds=ds['source']['train']['ds'], target_ds=ds['target']['train']['ds'], ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
+            for k in ['dage_a'] },
     }[args.method]()
 
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), test_ds['size'])
@@ -77,11 +81,9 @@ def main(args):
         'resnet101v2': lambda: keras.applications.resnet_v2.ResNet101V2(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
         'none'       : lambda i=keras.layers.Input(shape=INPUT_SHAPE): keras.models.Model(inputs=i, outputs=i),
     }[args.model_base]()
-    model_base.summary()
 
     aux_loss = {
-        **{ k: losses.dummy_loss for k in ['tune_source', 'tune_target']},
-        'dummy': lambda : losses.dummy,
+        **{ k  : lambda: losses.dummy_loss for k in ['dummy','tune_source', 'tune_target']},
         'ccsa' : lambda : losses.contrastive_loss,
         'dsne' : lambda : losses.dnse_loss(margin=1),
         'dage' : lambda : losses.dage_loss( connection_type=args.connection_type,
@@ -90,9 +92,16 @@ def main(args):
                                             penalty_filter_type=args.penalty_connection_filter_type,
                                             filter_param=args.connection_filter_param,
                                             penalty_filter_param=args.penalty_connection_filter_param ),
+        'dage_a' : lambda : losses.dage_attention_loss( 
+                                            connection_type=args.connection_type,
+                                            weight_type=args.weight_type,
+                                            filter_type=args.connection_filter_type,
+                                            penalty_filter_type=args.penalty_connection_filter_type,
+                                            filter_param=args.connection_filter_param,
+                                            penalty_filter_param=args.penalty_connection_filter_param ),
     }[args.method]()
 
-    model, train = {
+    (model, model_test), train = {
         'single_stream'         : lambda :( models.single_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size), 
                                             models.single_stream.train ),
         'two_stream_pair_embeds': lambda :( models.two_stream_pair_embeds.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
@@ -101,12 +110,17 @@ def main(args):
                                             models.two_stream_pair_logits.train ),
         'two_stream_aux_denses' : lambda :( models.two_stream_pair_aux_dense.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, aux_dense_size=args.aux_dense_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
                                             models.two_stream_pair_aux_dense.train ),
+        'two_stream_pair_embeds_attention_mid' :  lambda :( models.two_stream_pair_embeds_attention_mid.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
+                                                            models.two_stream_pair_embeds_attention_mid.train ),
+        'two_stream_pair_embeds_attention_base' :  lambda :( models.two_stream_pair_embeds_attention_base.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
+                                                            models.two_stream_pair_embeds_attention_base.train ),
     }[args.architecture]()
 
-    evaluate = {
-        **{k: evaluation.evaluate for k in ['tune_source', 'tune_target']},
-        **{k: evaluation.evaluate_da_pair for k in ['ccsa', 'dsne', 'dage']},
-    }[args.method]
+    # evaluate = {
+    #     **{k: evaluation.evaluate for k in ['tune_source', 'tune_target', 'dage_a']},
+    #     **{k: evaluation.evaluate_da_pair for k in ['ccsa', 'dsne', 'dage']},
+    # }[args.method]
+    evaluate = evaluation.evaluate
 
     if args.from_weights:
         weights_path = args.from_weights
@@ -120,7 +134,7 @@ def main(args):
 
     monitor = {
         **{k: 'val_acc' for k in ['tune_source', 'tune_target']},
-        **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage']},
+        **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage', 'dage_a']},
     }[args.method]
 
     fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor=monitor, verbose=args.verbose)
@@ -131,7 +145,7 @@ def main(args):
             raise ValueError('augment=1 is only allowed for features="images"')
         augment = {
             **{k: partial(dsg.augment, batch_size=args.batch_size) for k in ['tune_source', 'tune_target']},
-            **{k: partial(dsg.augment_pair, batch_size=args.batch_size) for k in ['ccsa', 'dsne', 'dage']},
+            **{k: partial(dsg.augment_pair, batch_size=args.batch_size) for k in ['ccsa', 'dsne', 'dage', 'dage_a']},
         }[args.method]
 
     # perform training and test
@@ -146,7 +160,7 @@ def main(args):
 
     if 'test' in args.mode:
         x, s = test_ds
-        evaluate( model=model, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
+        evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
 
 if __name__ == '__main__':
     args = parse_args()

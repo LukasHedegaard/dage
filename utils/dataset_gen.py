@@ -8,7 +8,6 @@ import itertools
 from utils.file_io import load_json
 import tensorflow as tf
 # import tensorflow_addons as tfa
-tf.compat.v1.enable_eager_execution()
 from math import pi as PI
 from scipy.io import loadmat
 AUTOTUNE = tf.data.experimental.AUTOTUNE
@@ -73,7 +72,7 @@ def dataset_from_paths(
             yield prep_dat(fp), prep_label(fp)
 
     output_types = (DTYPE, tf.bool)
-    output_shapes = (tf.TensorShape(shape), tf.TensorShape([len(CLASS_NAMES)]))
+    output_shapes = (tf.TensorShape(shape), CLASS_NAMES.shape) 
 
     labeled_ds = Dataset.from_generator(gen, output_types, output_shapes)
     return labeled_ds
@@ -249,6 +248,8 @@ def da_pair_dataset(
         NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
         @returns: the paired dataset and its size
     '''
+    assert tf.executing_eagerly()
+
     source_ds = source_ds.shuffle(buffer_size=shuffle_buffer_size)
     target_ds = target_ds.shuffle(buffer_size=shuffle_buffer_size)
 
@@ -322,6 +323,8 @@ def da_pair_repeat_dataset(
         NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
         @returns: the paired dataset and its size
     '''
+    assert tf.executing_eagerly()
+
     ds = val_ds['ds']
     size_ds = val_ds['size']
 
@@ -346,6 +349,118 @@ def da_pair_repeat_dataset(
     return {
         'ds': pair_ds,
         'size':size_ds
+    }
+    
+
+def make_ds_example(xs, xt, ys, yt): 
+    return {
+        'input_source':xs, 
+        'input_target':xt, 
+        'label_source':ys, 
+        'label_target':yt
+    }
+
+def make_ds_shapes(source_ds, target_ds):
+    return {  
+        'input_source': source_ds.output_shapes[0], 
+        'input_target': target_ds.output_shapes[0], 
+        'label_source': source_ds.output_shapes[1], 
+        'label_target': target_ds.output_shapes[1], 
+    }
+
+def make_ds_types(source_ds, target_ds):
+    return {  
+        'input_source': source_ds.output_types[0], 
+        'input_target': target_ds.output_types[0] , 
+        'label_source': source_ds.output_types[1], 
+        'label_target': target_ds.output_types[1], 
+    }
+
+def da_pair_alt_dataset(
+    source_ds,
+    target_ds,
+    ratio:Optional[float]=None,
+    shuffle_buffer_size=5000,
+) -> Tuple[Dataset, int]:
+    ''' Create a paired dataset of positive and negative pairs from source and target datasets.
+        NB: This has not been optimized for large datasets!
+        NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
+        @returns: the paired dataset and its size
+    '''
+    assert tf.executing_eagerly()
+
+    source_ds = source_ds.shuffle(buffer_size=shuffle_buffer_size)
+    target_ds = target_ds.shuffle(buffer_size=shuffle_buffer_size)
+
+    def equal_tensors(t1, t2):
+        return tf.cast(tf.math.reduce_all(tf.equal(t1, t2)), dtype=DTYPE)
+
+    def count_pair_types(src_ds, tgt_ds):
+        tot = 0
+        pos = 0
+        for (_, s_lbl), (_, t_lbl) in itertools.product(src_ds, tgt_ds):
+            pos += int(equal_tensors(s_lbl, t_lbl).numpy())
+            tot += 1
+        neg = tot - pos
+        return pos, neg
+
+    n_pos, n_neg = count_pair_types(source_ds, target_ds)
+    target_neg = round(n_pos*ratio)
+    size_ds = n_pos + min(n_neg, target_neg)
+
+    def gen_all():
+        for (xs, ys), (xt, yt) in itertools.product(source_ds, target_ds):
+            yield make_ds_example(xs, xt, ys, yt)
+
+    def gen_ratio():
+        if not ratio or target_neg > n_neg:
+            return gen_all
+
+        neg_left = target_neg
+        for (xs, ys), (xt, yt) in itertools.product(source_ds, target_ds):
+            eq = equal_tensors(ys, yt)
+            if not eq.numpy():
+                if neg_left > 0:
+                    neg_left -= 1
+                    yield make_ds_example(xs, xt, ys, yt)
+            else:
+                yield make_ds_example(xs, xt, ys, yt)
+
+    shapes = make_ds_shapes(source_ds, target_ds)
+    types  = make_ds_types(source_ds, target_ds)
+
+    mix_ds = Dataset.from_generator(gen_ratio, types, shapes)#.shuffle(buffer_size=shuffle_buffer_size)
+    return {
+        'ds': mix_ds,
+        'size':size_ds
+    }
+
+
+def da_pair_alt_repeat_dataset(
+    val_ds: Dict,
+    mdl_ins=['input_source', 'input_target'],
+    mdl_outs=['preds', 'preds_1', 'aux_out']
+) -> Tuple[Dataset, int]:
+    ''' Create a paired dataset by repeating the data on two streams
+        NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
+        @returns: the paired dataset and its size
+    '''
+    assert tf.executing_eagerly()
+
+    ds = val_ds['ds']
+    size_ds = val_ds['size']
+
+    def gen_pars():
+        for (d, l) in ds:
+            yield make_ds_example(d, d, l, l) 
+
+    shapes = make_ds_shapes(ds, ds)
+    types  = make_ds_types(ds, ds)
+
+    pair_ds = Dataset.from_generator(gen_pars, types, shapes)
+    return {
+        'ds'  : pair_ds,
+        'size': size_ds
     }
 
 
@@ -420,14 +535,3 @@ def augment_pair(
             num_parallel_calls=AUTOTUNE
         )
     return dataset
-
-
-# leftovers from dev testing
-# if __name__ == '__main__':
-#     tf.enable_eager_execution() 
-#     ds = office31_datasets('A', 'D')
-#     da_pair_dataset(ds['source']['train'], ds['target']['train'], ratio=1)
-#     class_names = office31_class_names()
-#     s = dataset_from_dir(Path(__file__).parent.parent / 'datasets' / 'Office31' / 'amazon' / 'images')
-#     s = balanced_dataset_split_from_dir(Path(__file__).parent.parent / 'datasets' / 'Office31' / 'amazon' / 'images', 3)
-#     print(ds)

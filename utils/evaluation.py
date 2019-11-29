@@ -2,7 +2,6 @@ from pathlib import Path
 from sklearn.metrics import classification_report
 import json
 import tensorflow as tf
-tf.compat.v1.enable_eager_execution() 
 from math import ceil
 keras = tf.compat.v2.keras
 Dataset = tf.compat.v2.data.Dataset
@@ -13,7 +12,6 @@ def evaluate_da_pair(
     test_dataset:Dataset, 
     test_size:int, 
     batch_size:int,  
-    # pred_file_path:Path,
     report_path:Path,
     verbose:int,
     target_names=None,
@@ -23,7 +21,6 @@ def evaluate_da_pair(
         test_dataset, 
         test_size, 
         batch_size, 
-        # pred_file_path,
         report_path,
         verbose,
         target_names,
@@ -65,6 +62,7 @@ def evaluate(
     get_data_and_lbls=lambda x: x,
     get_preds=lambda x: x,
 ):
+    assert tf.executing_eagerly()
     y_true, y_pred = [], []
     steps = ceil(test_size/batch_size)
 

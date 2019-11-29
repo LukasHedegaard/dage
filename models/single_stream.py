@@ -29,7 +29,7 @@ def model(
         metrics=['accuracy'],
     )
 
-    return model
+    return model, model
 
 
 def train(
