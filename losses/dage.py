@@ -273,8 +273,8 @@ def dage_attention_loss(
     }[connection_type]
 
     transform = {
-        WeightType.INDICATOR    : lambda W_Wp: (dist2indicator(W_Wp[0]), dist2indicator(W_Wp[1])),
-        WeightType.GAUSSIAN     : lambda W_Wp: (dist2gaussian(W_Wp[0]), dist2gaussian(W_Wp[1])),
+        WeightType.INDICATOR : lambda W_Wp: (dist2indicator(W_Wp[0]), dist2indicator(W_Wp[1])),
+        WeightType.GAUSSIAN  : lambda W_Wp: (dist2gaussian(W_Wp[0]), dist2gaussian(W_Wp[1])),
     }[weight_type]
 
     filt = make_filter(filter_type, penalty_filter_type, filter_param, penalty_filter_param)
@@ -324,7 +324,7 @@ def dage_attention_loss(
         A_loss  = tf.norm(tf.multiply(ones-W, A), ord='euclidean')
         Ap_loss = tf.norm(tf.multiply(ones-Wp, Ap), ord='euclidean')
 
-        loss = ge_loss + 0.1*(A_loss + Ap_loss)
+        loss = ge_loss #+ 0.1*(A_loss + Ap_loss)
 
         return loss
     return loss_fn
