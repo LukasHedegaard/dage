@@ -70,6 +70,7 @@ class DenseAttention(Layer):
             dtype=self.dtype,
             trainable=True
         )
+
         if self.use_bias:
             self.bias = self.add_weight(
                 'bias',
@@ -82,6 +83,16 @@ class DenseAttention(Layer):
             )
         else:
             self.bias = None
+
+        if self.omit_intra_domain:
+            tile_size = [self.batch_size//2, self.batch_size//2, self.classes]
+            zeros = tf.zeros(tile_size, dtype=tf.bool)
+            ones = tf.ones(tile_size, dtype=tf.bool)
+            self.mask = tf.concat([tf.concat([zeros, ones], axis=0),
+                                   tf.concat([ones, zeros], axis=0)], axis=1 )
+        else:
+            self.mask = None
+
         self.built = True
 
     def call(self, inputs, labels):
@@ -113,22 +124,16 @@ class DenseAttention(Layer):
         W = tf.equal(yTe, eTy) if not self.inverse else tf.not_equal(yTe, eTy)
 
         if self.omit_intra_domain:
-            tile_size = [self.batch_size//2, self.batch_size//2, self.classes]
-            zeros = tf.zeros(tile_size, dtype=tf.bool)
-            ones = tf.ones(tile_size, dtype=tf.bool)
-            mask = tf.concat([tf.concat([zeros, ones], axis=0),
-                              tf.concat([ones, zeros], axis=0)], axis=1 )
-            W = tf.logical_and(W, mask)
+            W = tf.logical_and(W, self.mask)
 
         A = tf.where(W, xBBx, tf.zeros_like(xBBx)) # mask using W
         
         if self.activation is not None:
-            A = tf.reshape(A,[self.classes, self.batch_size*self.batch_size])
-            A = self.activation(A) # pylint: disable=not-callable
-            A = tf.reshape(A,[self.batch_size, self.batch_size, self.classes])
+            A = self.activation(A) + self.activation(tf.transpose(A, perm=[1,0,2]))
             A = tf.where(W, A, tf.zeros_like(A)) # mask again to remove spill-over from softmax
             
         outputs = tf.reduce_sum(A, axis=2) #reduce along the channel axis
+
         return outputs
 
     def compute_output_shape(self, input_shape):
@@ -142,6 +147,7 @@ class DenseAttention(Layer):
         config = {
             'classes': self.classes,
             'activation': activations.serialize(self.activation),
+            'omit_intra_domain': self.omit_intra_domain,
             'use_bias': self.use_bias,
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
             'bias_initializer': initializers.serialize(self.bias_initializer),

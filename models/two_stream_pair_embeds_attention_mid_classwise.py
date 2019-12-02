@@ -70,7 +70,7 @@ def model(
         inverse=True
     )(concat_out, concat_lbl)
 
-    model = keras.models.Model(inputs=[in_src, in_tgt, lbl_src, lbl_tgt], outputs=[preds_src, preds_tgt, att_out, att_p_out])
+    model = keras.models.Model(inputs=[in_src, in_tgt, lbl_src, lbl_tgt], outputs=[mid_out_src, mid_out_tgt, preds_src, preds_tgt, att_out, att_p_out])
     model_test = keras.models.Model(inputs=[in_tgt], outputs=[preds_tgt])
 
     # Add losses 
@@ -83,7 +83,7 @@ def model(
     dage_loss_weight   = tf.cast(loss_alpha, dtype=DTYPE)
 
     model.add_loss(tf.scalar_mul(dage_loss_weight,   dage_loss  ))
-    model.add_loss(tf.scalar_mul(ce_loss_weight_src, ce_loss_src))
+    model.add_loss(tf.scalar_mul(ce_loss_weight_src, ce_loss_src)) 
     model.add_loss(tf.scalar_mul(ce_loss_weight_tgt, ce_loss_tgt))
 
     # Add metrics
@@ -126,3 +126,65 @@ def train(
         callbacks=callbacks,
         verbose=verbose,
     )
+
+def train_flipping(
+    model, 
+    datasource, 
+    datasource_size, 
+    epochs, 
+    batch_size, 
+    callbacks, 
+    verbose=1, 
+    val_datasource=None, 
+    val_datasource_size=None 
+):
+    validation_steps = val_datasource_size//batch_size if val_datasource_size else None
+    steps_per_epoch = datasource_size//batch_size
+
+    if not val_datasource_size:
+        val_datasource = None
+        validation_steps = None
+
+    train_iter = iter(datasource)
+    
+    for e in range(1,epochs+1):
+        if verbose:
+            print('Epoch {}/{}.'.format(e, epochs))
+
+        for step in range(steps_per_epoch):
+            batch = next(train_iter)
+
+            source_loss = model.train_on_batch(batch)
+
+            target_loss = model.train_on_batch({
+                'input_source': batch['input_target'], 
+                'input_target': batch['input_source'],
+                'label_source': batch['label_target'],
+                'label_target': batch['label_source'],
+            })
+
+            if step % 5 == 0 and verbose:
+                print(' Step {}/{}'.format(step, steps_per_epoch))
+                print('  Source Pass:  {}'.format(
+                    '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], source_loss[i]) for i in range(len(source_loss))])
+                ))
+                print('  Target Pass:  {}'.format(
+                    '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], target_loss[i]) for i in range(len(target_loss))])
+                ))
+
+        val_iter = iter(val_datasource)
+        val_loss = []
+        for step in range(validation_steps):
+            batch = next(val_iter)
+            val_loss.append(model.test_on_batch(batch))
+
+        val_loss_avg = reduce(
+            lambda n, o: [n[i]+o[i] for i in range(len(val_loss))],
+            val_loss, 
+            [0 for _ in val_loss[0]]
+        )
+
+        if verbose:
+            print('  Validation:  {}'.format(
+                '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], val_loss_avg[i]) for i in range(len(val_loss_avg))])
+            ))

@@ -8,7 +8,7 @@ import models
 import utils.dataset_gen as dsg
 from utils.callbacks import all as callbacks
 from utils.parse_args import parse_args
-import utils.evaluation as evaluation
+from utils.evaluation import evaluate
 from utils.file_io import save_json, load_json
 from utils.gpu import setup_gpu
 from functools import partial
@@ -120,12 +120,6 @@ def main(args):
                                   lambda :( models.two_stream_pair_embeds_attention_mid_classwise.model(attention_activation=args.attention_activation, model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, freeze_base=args.freeze_base, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even),
                                             models.two_stream_pair_embeds_attention_mid_classwise.train ),
     }[args.architecture]()
-
-    # evaluate = {
-    #     **{k: evaluation.evaluate for k in ['tune_source', 'tune_target', 'dage_a']},
-    #     **{k: evaluation.evaluate_da_pair for k in ['ccsa', 'dsne', 'dage']},
-    # }[args.method]
-    evaluate = evaluation.evaluate
 
     if args.from_weights:
         weights_path = args.from_weights

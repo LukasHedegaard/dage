@@ -1,6 +1,19 @@
 import tensorflow as tf
 keras = tf.compat.v2.keras
 
+class TerminateOnNegMetric(keras.callbacks.Callback):
+    def __init__(self, metric='aux_loss'):
+        super(TerminateOnNegMetric, self).__init__()
+        self.metric = metric
+
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        metric = logs.get(self.metric)
+        if metric is not None:
+            if metric < -0.1:
+                print('Batch %d: Invalid metric, terminating training\n' % (batch))
+                self.model.stop_training = True
+
 def checkpoint(checkpoints_dir, monitor='loss',verbose=True):
     return keras.callbacks.ModelCheckpoint(
         filepath=str(checkpoints_dir / 'cp-best.ckpt'),
@@ -42,5 +55,6 @@ def all(checkpoints_dir, tensorboard_dir, monitor='loss', verbose=True):
         checkpoint(checkpoints_dir, monitor, verbose), 
         reduce_lr(monitor, verbose), 
         early_stop(monitor, verbose), 
-        tensorboard(tensorboard_dir)
+        tensorboard(tensorboard_dir),
+        TerminateOnNegMetric(),
     ]

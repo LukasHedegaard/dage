@@ -300,31 +300,25 @@ def dage_attention_loss(
         batch_size = tf.shape(xs)[0]
 
         # construct loss for bad attention
-        W, Wp = make_weights(xs, xt, ys, yt, batch_size)
+        # W, Wp = make_weights(xs, xt, ys, yt, batch_size)
 
         # construct Weight matrix
-        WA = tf.multiply(W, A)
-        WpA = tf.multiply(Wp, Ap)
+        W = A #tf.multiply(W, A)
+        Wp = Ap #tf.multiply(Wp, Ap)
 
         # construct Degree matrix
-        D  = tf.linalg.diag(tf.reduce_sum(WA,  axis=1)) 
-        Dp = tf.linalg.diag(tf.reduce_sum(WpA, axis=1))
+        D  = tf.linalg.diag(tf.reduce_sum(W,  axis=1)) 
+        Dp = tf.linalg.diag(tf.reduce_sum(Wp, axis=1))
 
         # construct Graph Laplacian
-        L  = tf.subtract(D, WA)
-        Lp = tf.subtract(Dp, WpA)
+        L  = tf.subtract(D, W)
+        Lp = tf.subtract(Dp, Wp)
         
         # construct loss
         θϕLϕθ  = tf.matmul(θϕ, tf.matmul(L,  θϕ, transpose_b=True))
         θϕLpϕθ = tf.matmul(θϕ, tf.matmul(Lp, θϕ, transpose_b=True))
 
-        ge_loss = tf.linalg.trace(θϕLϕθ) / tf.linalg.trace(θϕLpϕθ)
-
-        ones = tf.ones_like(W)
-        A_loss  = tf.norm(tf.multiply(ones-W, A), ord='euclidean')
-        Ap_loss = tf.norm(tf.multiply(ones-Wp, Ap), ord='euclidean')
-
-        loss = ge_loss #+ 0.1*(A_loss + Ap_loss)
+        loss = tf.linalg.trace(θϕLϕθ) / tf.linalg.trace(θϕLpϕθ)
 
         return loss
     return loss_fn
