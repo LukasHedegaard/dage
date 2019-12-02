@@ -64,6 +64,7 @@ def parse_args():
                                    'EPSILON: Edges where distances are within a distance threshold epsilon are used;' )
      loss_parser.add_argument('--connection_filter_param', type=int, default=1, help='Parameter for the connection_filter_type. Default: 1')
      loss_parser.add_argument('--penalty_connection_filter_param', type=int, default=1, help='Parameter for the penalty_connection_filter_type. Default: 1')
+     loss_parser.add_argument('--attention_activation', type=str, default='softmax', help='Activation function for attention. Default: softmax')
 
      # train
      train_parser = parser.add_argument_group(description='Training')

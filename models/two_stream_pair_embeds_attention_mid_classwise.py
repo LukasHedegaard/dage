@@ -20,7 +20,7 @@ def model(
     freeze_base=True,
     embed_size=128,
     dense_size=1024,
-    attention_embed_size=1024
+    attention_activation='softmax'
 ):
     in_src = keras.layers.Input(shape=input_shape, name='input_source')
     in_tgt = keras.layers.Input(shape=input_shape, name='input_target')
@@ -49,12 +49,26 @@ def model(
 
 
     # Setup for DAGE loss
-    # pair_out = Pair(name='aux_out', embed_size=embed_size)([mid_out_src, mid_out_tgt])
     concat_out = keras.layers.Concatenate(axis=0)([mid_out_src, mid_out_tgt])
     concat_lbl = keras.layers.Concatenate(axis=0)([lbl_src, lbl_src])
 
-    att_out    = DenseAttention(classes=output_shape, input_shape=get_output_shape(model_mid))(concat_out, concat_lbl)
-    att_p_out  = DenseAttention(classes=output_shape, input_shape=get_output_shape(model_mid))(concat_out, concat_lbl)
+    concat_out = keras.layers.Lambda(lambda x: keras.backend.stop_gradient(x))(concat_out)
+    concat_lbl = keras.layers.Lambda(lambda x: keras.backend.stop_gradient(x))(concat_lbl)
+
+    att_out = DenseAttention(
+        input_shape=get_output_shape(model_mid), 
+        classes=output_shape, 
+        activation=attention_activation, 
+        batch_size=2*batch_size
+    )(concat_out, concat_lbl)
+
+    att_p_out = DenseAttention(
+        input_shape=get_output_shape(model_mid), 
+        classes=output_shape, 
+        activation=attention_activation, 
+        batch_size=2*batch_size,
+        inverse=True
+    )(concat_out, concat_lbl)
 
     model = keras.models.Model(inputs=[in_src, in_tgt, lbl_src, lbl_tgt], outputs=[preds_src, preds_tgt, att_out, att_p_out])
     model_test = keras.models.Model(inputs=[in_tgt], outputs=[preds_tgt])

@@ -15,6 +15,8 @@ class DenseAttention(Layer):
 
     def __init__(self,
                  classes,
+                 batch_size,
+                 inverse=False,
                  omit_intra_domain=True,
                  activation='softmax',
                  use_bias=True,
@@ -31,6 +33,8 @@ class DenseAttention(Layer):
 
         super(DenseAttention, self).__init__(activity_regularizer=regularizers.get(activity_regularizer), **kwargs)
         self.classes = int(classes)
+        self.batch_size = int(batch_size)
+        self.inverse = inverse
         self.omit_intra_domain = omit_intra_domain
         self.activation = activations.get(activation)
         self.use_bias = use_bias
@@ -88,10 +92,10 @@ class DenseAttention(Layer):
             raise ValueError("`DenseAttention` doesn't support SparseTensor as input")
             
         inputs = math_ops.cast(inputs, self._compute_dtype)
-        num_samples = 32 #tensor_shape.dimension_value(inputs.shape[0])
+        # self.batch_size = tensor_shape.dimension_value(inputs.shape[0])
         
         # broadcast input to the number of classes
-        inputs_shape_b = [self.classes, num_samples, self.dims]
+        inputs_shape_b = [self.classes, self.batch_size, self.dims]
         xTe = tf.broadcast_to(tf.expand_dims(inputs, axis=0), shape=inputs_shape_b)
         
         # apply attention-weights
@@ -103,13 +107,13 @@ class DenseAttention(Layer):
         xBBx = tf.transpose(xBBx, perm=[1,2,0])
         
         # create masking according to samples classes
-        labels_shape_b = [num_samples, num_samples, self.classes ]
+        labels_shape_b = [self.batch_size, self.batch_size, self.classes ]
         yTe = tf.broadcast_to(tf.expand_dims(labels, axis=1), shape=labels_shape_b)
         eTy = tf.broadcast_to(tf.expand_dims(labels, axis=0), shape=labels_shape_b)
-        W = tf.equal(yTe, eTy)
+        W = tf.equal(yTe, eTy) if not self.inverse else tf.not_equal(yTe, eTy)
 
         if self.omit_intra_domain:
-            tile_size = [num_samples//2, num_samples//2, self.classes]
+            tile_size = [self.batch_size//2, self.batch_size//2, self.classes]
             zeros = tf.zeros(tile_size, dtype=tf.bool)
             ones = tf.ones(tile_size, dtype=tf.bool)
             mask = tf.concat([tf.concat([zeros, ones], axis=0),
@@ -118,11 +122,11 @@ class DenseAttention(Layer):
 
         A = tf.where(W, xBBx, tf.zeros_like(xBBx)) # mask using W
         
-        # if self.activation is not None:
-        #     A = tf.reshape(A,[self.classes, num_samples*num_samples])
-        #     A = self.activation(A) # pylint: disable=not-callable
-        #     A = tf.reshape(A,[num_samples,num_samples, self.classes])
-        #     A = tf.where(W, A, tf.zeros_like(A)) # mask again to remove spill-over from softmax
+        if self.activation is not None:
+            A = tf.reshape(A,[self.classes, self.batch_size*self.batch_size])
+            A = self.activation(A) # pylint: disable=not-callable
+            A = tf.reshape(A,[self.batch_size, self.batch_size, self.classes])
+            A = tf.where(W, A, tf.zeros_like(A)) # mask again to remove spill-over from softmax
             
         outputs = tf.reduce_sum(A, axis=2) #reduce along the channel axis
         return outputs
