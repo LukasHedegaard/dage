@@ -25,7 +25,7 @@ do
                         if [ $SOURCE != $TARGET ]
                         then
                             python3 run.py \
-                                --gpu_id            1 \
+                                --gpu_id            0 \
                                 --experiment_id     $EXPERIMENT_ID \
                                 --source            $SOURCE \
                                 --target            $TARGET \
@@ -50,4 +50,5 @@ do
                 done
             done
         done
+    done
 done
