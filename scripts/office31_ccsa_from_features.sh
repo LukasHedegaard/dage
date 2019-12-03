@@ -4,15 +4,15 @@ DESCRIPTION="CCSA method trained on pre-extracted vgg16 features."
 
 EXPERIMENT_ID=ccsa_from_feat
 METHOD=ccsa
-ARCHITECTURE=two_stream_pair_logits
+ARCHITECTURE=two_stream_pair_embeds
 MODEL_BASE=none
 FEATURES=vgg16
 EPOCHS=20
 AUGMENT=0
 LOSS_WEIGHTS_EVEN=0
 LOSS_ALPHA=0.25
-BATCH_SIZE=256
-GPU_ID=1
+BATCH_SIZE=16
+GPU_ID=0
 
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
