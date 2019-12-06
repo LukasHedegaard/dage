@@ -17,35 +17,50 @@ def freeze(model, num_leave_unfrozen=0):
             layer.trainable = False
 
 
-def model_dense(input_shape, dense_size, embed_size):
-    return keras.Sequential([
-        keras.layers.Input(shape=input_shape),
-        keras.layers.Dropout(0.25),
-        keras.layers.Flatten(),
-        keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense'),
-        keras.layers.BatchNormalization(momentum=0.9),
-        keras.layers.Activation('relu'),
-        keras.layers.Dropout(0.5),
-        keras.layers.Dense(embed_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed'),
-        keras.layers.BatchNormalization(momentum=0.9),
-        keras.layers.Activation('relu'),
-    ], name='dense_layers')
+def model_dense(input_shape, dense_size, embed_size, l2=0.0001, batch_norm=False):
+
+    i = keras.layers.Input(shape=input_shape)
+    o = keras.layers.Dropout(0.25)(i)
+    o = keras.layers.Flatten()(o)
+    o = keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
+    if batch_norm:
+        o = keras.layers.BatchNormalization(momentum=0.9)(o)
+    o = keras.layers.Activation('relu')(o)
+    o = keras.layers.Dropout(0.5)(o)
+    o = keras.layers.Dense(embed_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
+    if batch_norm:
+        o = keras.layers.BatchNormalization(momentum=0.9)(o)
+    o = keras.layers.Activation('relu')(o)
+    model=keras.models.Model(inputs=[i], outputs=[o], name='dense_layers')
+    return model
+    # return keras.Sequential([
+    #     keras.layers.Input(shape=input_shape),
+    #     keras.layers.Dropout(0.25),
+    #     keras.layers.Flatten(),
+    #     keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense', kernel_regularizer = keras.regularizers.l2(l=l2)),
+    #     keras.layers.BatchNormalization(momentum=0.9) if batch_norm else None,
+    #     keras.layers.Activation('relu'),
+    #     keras.layers.Dropout(0.5),
+    #     keras.layers.Dense(embed_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed', kernel_regularizer = keras.regularizers.l2(l=l2)),
+    #     keras.layers.BatchNormalization(momentum=0.9) if batch_norm else None,
+    #     keras.layers.Activation('relu'),
+    # ], name='dense_layers')
 
 
-def model_preds(input_shape, output_shape):
+def model_preds(input_shape, output_shape, l2=0.0001):
     return keras.Sequential([
         keras.layers.Input(shape=input_shape),
         keras.layers.Dropout(0.5),
-        keras.layers.Dense(output_shape, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits'),
+        keras.layers.Dense(output_shape, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits', kernel_regularizer = keras.regularizers.l2(l=l2)),
         keras.layers.Activation('softmax', name='preds'),
     ], name='preds')
 
 
-def model_logits(input_shape, dense_size):
+def model_logits(input_shape, dense_size, l2=0.0001):
     return keras.Sequential([
         keras.layers.Input(shape=input_shape),
         keras.layers.Dropout(0.5),
-        keras.layers.Dense(dense_size, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits'),
+        keras.layers.Dense(dense_size, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits', kernel_regularizer = keras.regularizers.l2(l=l2)),
     ], name='logits')
 
 

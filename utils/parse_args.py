@@ -5,6 +5,7 @@ def parse_args():
 
      info_parser = parser.add_argument_group(description='Info')
      info_parser.add_argument('--experiment_id', type=str, default='', help='Experiment ID')
+     info_parser.add_argument('--timestamp', type=str, default='', help='Timestamp')
 
      os_parser = parser.add_argument_group(description='OS')
      os_parser.add_argument('--gpu_id', type=str, default='2', help='Which GPU to use. Default: 2')
@@ -18,9 +19,11 @@ def parse_args():
                                    'none: dummy model containing a unity mapping;'
                               )
      model_parser.add_argument('--from_weights', type=str, default=None, help='Path to pretrained model weights')
-     model_parser.add_argument('--freeze_base', type=int, default=1, help='Freeze base network. Default: 1')
+     model_parser.add_argument('--num_unfrozen_base_layers', type=int, default=0, help='Number of unfrozen layers in base network. Default: 0')
      model_parser.add_argument('--embed_size', type=int, default=128, help='Size of embedding layer. Default: 128')
      model_parser.add_argument('--dense_size', type=int, default=1024, help='Size of first dense layer. Default: 1024')
+     model_parser.add_argument('--l2', type=float, default=0, help='L2 normalisation parameter. Default: 0')
+     model_parser.add_argument('--batch_norm', type=int, default=1, help='Use batch normalisation layers. Default: 1')
      model_parser.add_argument('--aux_dense_size', type=int, default=31, help='Size of aux dense layer. Default: 31')
      model_parser.add_argument('--architecture', type=str, default='single_stream',
                               help='Architectures: '

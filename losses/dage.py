@@ -261,43 +261,43 @@ def dage_attention_loss(
     filter_param=1,
     penalty_filter_param=1
 ): 
-    connection_type     = str2enum(connection_type, ConnectionType)
-    weight_type         = str2enum(weight_type, WeightType)
-    filter_type         = str2enum(filter_type, FilterType)
-    penalty_filter_type = str2enum(penalty_filter_type, FilterType)
+    # connection_type     = str2enum(connection_type, ConnectionType)
+    # weight_type         = str2enum(weight_type, WeightType)
+    # filter_type         = str2enum(filter_type, FilterType)
+    # penalty_filter_type = str2enum(penalty_filter_type, FilterType)
 
-    connect = {
-        ConnectionType.ALL                : connect_all,
-        ConnectionType.SOURCE_TARGET      : connect_source_target,
-        ConnectionType.SOURCE_TARGET_PAIR : connect_source_target_pair,
-    }[connection_type]
+    # connect = {
+    #     ConnectionType.ALL                : connect_all,
+    #     ConnectionType.SOURCE_TARGET      : connect_source_target,
+    #     ConnectionType.SOURCE_TARGET_PAIR : connect_source_target_pair,
+    # }[connection_type]
 
-    transform = {
-        WeightType.INDICATOR : lambda W_Wp: (dist2indicator(W_Wp[0]), dist2indicator(W_Wp[1])),
-        WeightType.GAUSSIAN  : lambda W_Wp: (dist2gaussian(W_Wp[0]), dist2gaussian(W_Wp[1])),
-    }[weight_type]
+    # transform = {
+    #     WeightType.INDICATOR : lambda W_Wp: (dist2indicator(W_Wp[0]), dist2indicator(W_Wp[1])),
+    #     WeightType.GAUSSIAN  : lambda W_Wp: (dist2gaussian(W_Wp[0]), dist2gaussian(W_Wp[1])),
+    # }[weight_type]
 
-    filt = make_filter(filter_type, penalty_filter_type, filter_param, penalty_filter_param)
+    # filt = make_filter(filter_type, penalty_filter_type, filter_param, penalty_filter_param)
 
-    if filter_type==FilterType.ALL and penalty_filter_type==FilterType.ALL and weight_type==WeightType.INDICATOR:
-        # performance optimisation
-        def make_weights(xs, xt, ys, yt, batch_size):
-            W, Wp = connect(ys, yt, batch_size)
-            return tf.cast(W, dtype=DTYPE), tf.cast(Wp, dtype=DTYPE)
-    else:
-        def make_weights(xs, xt, ys, yt, batch_size):
-            W, Wp = transform(filt( W_Wp=connect(ys, yt, batch_size),
-                                    xs=xs,
-                                    xt=xt ))
-            return tf.cast(W, dtype=DTYPE), tf.cast(Wp, dtype=DTYPE)
+    # if filter_type==FilterType.ALL and penalty_filter_type==FilterType.ALL and weight_type==WeightType.INDICATOR:
+    #     # performance optimisation
+    #     def make_weights(xs, xt, ys, yt, batch_size):
+    #         W, Wp = connect(ys, yt, batch_size)
+    #         return tf.cast(W, dtype=DTYPE), tf.cast(Wp, dtype=DTYPE)
+    # else:
+    #     def make_weights(xs, xt, ys, yt, batch_size):
+    #         W, Wp = transform(filt( W_Wp=connect(ys, yt, batch_size),
+    #                                 xs=xs,
+    #                                 xt=xt ))
+    #         return tf.cast(W, dtype=DTYPE), tf.cast(Wp, dtype=DTYPE)
 
 
     def loss_fn(lbl_src, lbl_tgt, xs, xt, A, Ap):
-        ys = tf.argmax(tf.cast(lbl_src, dtype=tf.int32), axis=1)
-        yt = tf.argmax(tf.cast(lbl_tgt, dtype=tf.int32), axis=1)
+        # ys = tf.argmax(tf.cast(lbl_src, dtype=tf.int32), axis=1)
+        # yt = tf.argmax(tf.cast(lbl_tgt, dtype=tf.int32), axis=1)
         θϕ = tf.transpose(tf.concat([xs,xt], axis=0))
 
-        batch_size = tf.shape(xs)[0]
+        # batch_size = tf.shape(xs)[0]
 
         # construct loss for bad attention
         # W, Wp = make_weights(xs, xt, ys, yt, batch_size)
