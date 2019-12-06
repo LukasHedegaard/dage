@@ -17,16 +17,18 @@ def freeze(model, num_leave_unfrozen=0):
             layer.trainable = False
 
 
-def model_dense(input_shape, dense_size, embed_size, l2=0.0001, batch_norm=False):
+def model_dense(input_shape, dense_size, embed_size, l2=0.0001, batch_norm=False, dropout=0.5):
 
     i = keras.layers.Input(shape=input_shape)
-    o = keras.layers.Dropout(0.25)(i)
+    if dropout:
+        o = keras.layers.Dropout(dropout/2)(i)
     o = keras.layers.Flatten()(o)
     o = keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
     if batch_norm:
         o = keras.layers.BatchNormalization(momentum=0.9)(o)
     o = keras.layers.Activation('relu')(o)
-    o = keras.layers.Dropout(0.5)(o)
+    if dropout:
+        o = keras.layers.Dropout(0.5)(o)
     o = keras.layers.Dense(embed_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
     if batch_norm:
         o = keras.layers.BatchNormalization(momentum=0.9)(o)

@@ -12,11 +12,12 @@ def model(
     embed_size=128,
     dense_size=1024,
     l2 = 0.0001,
-    batch_norm=True
+    batch_norm=True,
+    dropout=0.5
 ):
     freeze(model_base, num_leave_unfrozen=num_unfrozen_base_layers)
 
-    model_mid = model_dense(input_shape=get_output_shape(model_base), dense_size=dense_size, embed_size=embed_size, l2=l2, batch_norm=batch_norm)
+    model_mid = model_dense(input_shape=get_output_shape(model_base), dense_size=dense_size, embed_size=embed_size, l2=l2, batch_norm=batch_norm, dropout=dropout)
     model_top = model_preds(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
 
     model = keras.Sequential([ model_base, model_mid, model_top ])

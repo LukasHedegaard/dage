@@ -24,6 +24,7 @@ def parse_args():
      model_parser.add_argument('--dense_size', type=int, default=1024, help='Size of first dense layer. Default: 1024')
      model_parser.add_argument('--l2', type=float, default=0, help='L2 normalisation parameter. Default: 0')
      model_parser.add_argument('--batch_norm', type=int, default=1, help='Use batch normalisation layers. Default: 1')
+     model_parser.add_argument('--dropout', type=float, default=0.5, help='Dropout. Default: 0.5')
      model_parser.add_argument('--aux_dense_size', type=int, default=31, help='Size of aux dense layer. Default: 31')
      model_parser.add_argument('--architecture', type=str, default='single_stream',
                               help='Architectures: '
