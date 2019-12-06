@@ -71,9 +71,9 @@ def main(args):
 
     # prepare optimizer
     optimizer = {
-        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=False),
-        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False),
-        'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate),
+        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=False, clipvalue=1),
+        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False, clipvalue=1),
+        'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate, clipvalue=1),
     }[args.optimizer]()
 
     # prepare model
