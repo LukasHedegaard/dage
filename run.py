@@ -71,7 +71,7 @@ def main(args):
 
     # prepare optimizer
     optimizer = {
-        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=False, clipvalue=10),
+        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=False, clipvalue=10),
         'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False, clipvalue=10),
         'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate, clipvalue=10),
     }[args.optimizer]()
