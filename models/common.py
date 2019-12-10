@@ -13,16 +13,20 @@ def get_output_shape(model):
 
 
 def freeze(model, num_leave_unfrozen=0):
-    for layer in model.layers[:-num_leave_unfrozen]:
+    if num_leave_unfrozen == 0:
+        for layer in model.layers:
+            layer.trainable = False
+    else:
+        for layer in model.layers[:-num_leave_unfrozen]:
             layer.trainable = False
 
 
 def model_dense(input_shape, dense_size, embed_size, l2=0.0001, batch_norm=False, dropout=0.5):
 
     i = keras.layers.Input(shape=input_shape)
+    o = keras.layers.Flatten()(i)
     if dropout:
-        o = keras.layers.Dropout(dropout/2)(i)
-    o = keras.layers.Flatten()(o)
+        o = keras.layers.Dropout(dropout/2)(o)
     o = keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
     if batch_norm:
         o = keras.layers.BatchNormalization(momentum=0.9)(o)

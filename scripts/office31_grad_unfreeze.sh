@@ -4,15 +4,15 @@ We perform the gradual unfreeze mechanism within this script, first training onl
 We then reduce the learing rate, and perform training again, with some base-layers unfrozen, this time using the weights from the previous iteration as starting point.
 This is repeated, each time unfreezing more layers."
 
-METHOD=tune_source
+METHOD=multitask
 GPU_ID=1
 OPTIMIZER=adam
-ARCHITECTURE=single_stream
+ARCHITECTURE=two_stream_pair_embeds
 MODEL_BASE=vgg16
 FEATURES=images
 EPOCHS=20
 BATCH_SIZE=12
-AUGMENT=1
+AUGMENT=0
 LOSS_ALPHA=0.25
 LOSS_WEIGHTS_EVEN=1
 WEIGHT_TYPE=indicator
@@ -24,7 +24,7 @@ PENALTY_CONNECTION_FILTER_PARAM=1
 
 EXPERIMENT_ID_BASE=gradual_unfreeze_vgg16
 
-for SEED in 1 2 4 5
+for SEED in 0 1 2 4 5
 do
     for SOURCE in A #W D
     do
@@ -67,7 +67,7 @@ do
 
                 FROM_WEIGHTS="./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP_OLD}/checkpoints/cp-best.ckpt"
 
-                for UNFROZEN in 2 3 4 6 7 8 10 11 12
+                for UNFROZEN in 2 3 4 6 7 8 10 11 12 14 15 17 18
                 do
                     EXPERIMENT_ID="${EXPERIMENT_ID_BASE}_${UNFROZEN}"
                     DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-DESCRIPTION="Test which regularisation strategy works best. We test batch norm and L2 here."
+DESCRIPTION="Test which regularisation strategy works best. We test batch norm, dropout, and L2 here."
 
 for BN in 0 1
 do
@@ -8,14 +8,13 @@ do
 
         for DROPOUT in 0 0.25 0.5
         do
-            EXPERIMENT_ID=regularization_test_bn{$BN}_{drop$DROPOUT}
+            EXPERIMENT_ID="regularization_test_bn${BN}_drop${DROPOUT}"
             METHOD=dage
 
             DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
             mkdir $DIR_NAME -p
             echo $DESCRIPTION > $DIR_NAME/description.txt
-
 
             for SEED in 0 1 2 4 5
             do
@@ -26,7 +25,7 @@ do
                         if [ $SOURCE != $TARGET ]
                         then
                             python3 run.py \
-                                --gpu_id            1 \
+                                --gpu_id            0 \
                                 --learning_rate     0.001 \
                                 --optimizer         adam \
                                 --experiment_id     $EXPERIMENT_ID \
@@ -40,8 +39,8 @@ do
                                 --epochs            30 \
                                 --batch_size        16 \
                                 --augment           0 \
-                                --loss_alpha        0.25 \
-                                --loss_weights_even 1 \
+                                --loss_alpha        0.75 \
+                                --loss_weights_even 0 \
                                 --weight_type       indicator \
                                 --connection_type                   source_target \
                                 --connection_filter_type            knn \
