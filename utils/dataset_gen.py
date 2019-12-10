@@ -84,7 +84,7 @@ def prep_ds(dataset: Dataset, batch_size=16, cache:str=None, shuffle_buffer_size
             dataset = dataset.cache(cache)
         else:
             dataset = dataset.cache() #pylint: disable=no-member
-    dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
+    # dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
     dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(buffer_size=AUTOTUNE)
     return dataset

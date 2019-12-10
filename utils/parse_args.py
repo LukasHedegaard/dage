@@ -79,7 +79,7 @@ def parse_args():
      train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
      train_parser.add_argument('--augment', type=int, default=0, help='Activate augmentation. Only works with features="images". Default: 0')
      train_parser.add_argument('--features', type=str, default='images', 
-                              help='The input features to use. Default: raw. Options: '
+                              help='The input features to use. Default: images. Options: '
                                    'images: unprocessed JPG images. '
                                    'surf: speeded-up robust features.'
                                    'decaf: features extracted through DeCaf network.'
