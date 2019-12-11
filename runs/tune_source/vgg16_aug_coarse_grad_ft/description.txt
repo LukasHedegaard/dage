@@ -1,0 +1,1 @@
+Train using gradual unfreeze. We perform the gradual unfreeze mechanism within this script, first training only new layers until convergence. We then reduce the learing rate, and perform training again, with some base-layers unfrozen, this time using the weights from the previous iteration as starting point. This is repeated, each time unfreezing more layers.
