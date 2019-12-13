@@ -28,6 +28,9 @@ do
                                 --gpu_id            0 \
                                 --learning_rate     0.001 \
                                 --optimizer         adam \
+                                --dropout           $DROPOUT \
+                                --batch_norm        $BN \
+                                --l2                $L2 \
                                 --experiment_id     $EXPERIMENT_ID \
                                 --source            $SOURCE \
                                 --target            $TARGET \

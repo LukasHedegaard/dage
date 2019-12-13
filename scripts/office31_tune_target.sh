@@ -1,42 +1,85 @@
 #!/usr/bin/env bash
+DESCRIPTION="Tune on target data using gradual unfreeze. 
+Here, we use the weights from source tuning as a starting point. 
+We perform the gradual unfreeze mechanism within this script, first training only new layers until convergence.
+We then reduce the learing rate, and perform training again, with some base-layers unfrozen, this time using the weights from the previous iteration as starting point.
+This is repeated, each time unfreezing more layers."
 
-# Repeat 1
-python run.py --method tune_target --source A --target D --model_base vgg16 --epochs 3000 --seed 1 --augment  1 --from_weights ~/domain-adaptation/runs/20191022151331_A_D_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source A --target W --model_base vgg16 --epochs 3000 --seed 1 --augment  1 --from_weights ~/domain-adaptation/runs/20191022152940_A_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target A --model_base vgg16 --epochs 3000 --seed 1 --augment  1 --from_weights ~/domain-adaptation/runs/20191022154540_D_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target W --model_base vgg16 --epochs 3000 --seed 1 --augment  1 --from_weights ~/domain-adaptation/runs/20191022155009_D_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target A --model_base vgg16 --epochs 3000 --seed 1 --augment  1 --from_weights ~/domain-adaptation/runs/20191022155434_W_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target D --model_base vgg16 --epochs 3000 --seed 1 --augment  1 --from_weights ~/domain-adaptation/runs/20191022160028_W_D_tune_both/checkpoints/cp-025.ckpt
+METHOD=tune_target
+GPU_ID=2
+OPTIMIZER=adam
+ARCHITECTURE=single_stream
+MODEL_BASE=vgg16
+FEATURES=images
+BATCH_SIZE=12
+AUGMENT=1
+EXPERIMENT_ID_BASE="${MODEL_BASE}_aug"
 
-# Repeat 2
-python run.py --method tune_target --source A --target D --model_base vgg16 --epochs 3000 --seed 2 --augment  1 --from_weights ~/domain-adaptation/runs/20191022160624_A_D_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source A --target W --model_base vgg16 --epochs 3000 --seed 2 --augment  1 --from_weights ~/domain-adaptation/runs/20191022162237_A_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target A --model_base vgg16 --epochs 3000 --seed 2 --augment  1 --from_weights ~/domain-adaptation/runs/20191022163840_D_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target W --model_base vgg16 --epochs 3000 --seed 2 --augment  1 --from_weights ~/domain-adaptation/runs/20191022164308_D_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target A --model_base vgg16 --epochs 3000 --seed 2 --augment  1 --from_weights ~/domain-adaptation/runs/20191022164731_W_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target D --model_base vgg16 --epochs 3000 --seed 2 --augment  1 --from_weights ~/domain-adaptation/runs/20191022165325_W_D_tune_both/checkpoints/cp-025.ckpt
+for SEED in 0 1 2 3 4
+do
+    for SOURCE in A W D
+    do
+        for TARGET in D A W
+        do
+            if [ $SOURCE != $TARGET ]
+            then
+                FROM_WEIGHTS="./runs/tune_source/${MODEL_BASE}_aug_ft_best/${SOURCE}${TARGET}/checkpoints/cp-best.ckpt"
 
-# Repeat 3
-python run.py --method tune_target --source A --target D --model_base vgg16 --epochs 3000 --seed 3 --augment  1 --from_weights ~/domain-adaptation/runs/20191022165923_A_D_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source A --target W --model_base vgg16 --epochs 3000 --seed 3 --augment  1 --from_weights ~/domain-adaptation/runs/20191022171553_A_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target A --model_base vgg16 --epochs 3000 --seed 3 --augment  1 --from_weights ~/domain-adaptation/runs/20191022173208_D_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target W --model_base vgg16 --epochs 3000 --seed 3 --augment  1 --from_weights ~/domain-adaptation/runs/20191022173640_D_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target A --model_base vgg16 --epochs 3000 --seed 3 --augment  1 --from_weights ~/domain-adaptation/runs/20191022174104_W_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target D --model_base vgg16 --epochs 3000 --seed 3 --augment  1 --from_weights ~/domain-adaptation/runs/20191022174706_W_D_tune_both/checkpoints/cp-025.ckpt
+                EXPERIMENT_ID="${EXPERIMENT_ID_BASE}"
+                DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
+                mkdir $DIR_NAME -p
+                echo $DESCRIPTION > $DIR_NAME/description.txt
 
-# Repeat 4
-python run.py --method tune_target --source A --target D --model_base vgg16 --epochs 3000 --seed 4 --augment  1 --from_weights ~/domain-adaptation/runs/20191022175314_A_D_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source A --target W --model_base vgg16 --epochs 3000 --seed 4 --augment  1 --from_weights ~/domain-adaptation/runs/20191022180951_A_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target A --model_base vgg16 --epochs 3000 --seed 4 --augment  1 --from_weights ~/domain-adaptation/runs/20191022182611_D_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target W --model_base vgg16 --epochs 3000 --seed 4 --augment  1 --from_weights ~/domain-adaptation/runs/20191022183040_D_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target A --model_base vgg16 --epochs 3000 --seed 4 --augment  1 --from_weights ~/domain-adaptation/runs/20191022183456_W_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target D --model_base vgg16 --epochs 3000 --seed 4 --augment  1 --from_weights ~/domain-adaptation/runs/20191022184038_W_D_tune_both/checkpoints/cp-025.ckpt
+                TIMESTAMP_OLD=$(date '+%Y%m%d%H%M%S')
 
-# Repeat 5
-python run.py --method tune_target --source A --target D --model_base vgg16 --epochs 3000 --seed 5 --augment  1 --from_weights ~/domain-adaptation/runs/20191022184642_A_D_tune_both/checkpoints/cp-015.ckpt
-python run.py --method tune_target --source A --target W --model_base vgg16 --epochs 3000 --seed 5 --augment  1 --from_weights ~/domain-adaptation/runs/20191022190310_A_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target A --model_base vgg16 --epochs 3000 --seed 5 --augment  1 --from_weights ~/domain-adaptation/runs/20191022191922_D_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source D --target W --model_base vgg16 --epochs 3000 --seed 5 --augment  1 --from_weights ~/domain-adaptation/runs/20191022192357_D_W_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target A --model_base vgg16 --epochs 3000 --seed 5 --augment  1 --from_weights ~/domain-adaptation/runs/20191022192807_W_A_tune_both/checkpoints/cp-025.ckpt
-python run.py --method tune_target --source W --target D --model_base vgg16 --epochs 3000 --seed 5 --augment  1 --from_weights ~/domain-adaptation/runs/20191022193359_W_D_tune_both/checkpoints/cp-025.ckpt
+                python3 run.py \
+                    --num_unfrozen_base_layers 0 \
+                    --training_regimen  regular \
+                    --timestamp         $TIMESTAMP_OLD \
+                    --learning_rate     1e-5 \
+                    --epochs            15 \
+                    --gpu_id            $GPU_ID \
+                    --optimizer         $OPTIMIZER \
+                    --experiment_id     $EXPERIMENT_ID \
+                    --source            $SOURCE \
+                    --target            $TARGET \
+                    --seed              $SEED \
+                    --method            $METHOD \
+                    --architecture      $ARCHITECTURE \
+                    --model_base        $MODEL_BASE \
+                    --features          $FEATURES \
+                    --batch_size        $BATCH_SIZE \
+                    --augment           $AUGMENT \
+                    --from_weights      $FROM_WEIGHTS \
 
+                FROM_WEIGHTS="./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP_OLD}/checkpoints/cp-best.ckpt"
+
+                EXPERIMENT_ID="${EXPERIMENT_ID_BASE}_coarse_grad_ft"
+                DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
+                mkdir $DIR_NAME -p
+                echo $DESCRIPTION > $DIR_NAME/description.txt
+
+                python3 run.py \
+                    --training_regimen  gradual_unfreeze \
+                    --learning_rate     1e-5 \
+                    --epochs            10 \
+                    --optimizer         $OPTIMIZER \
+                    --gpu_id            $GPU_ID \
+                    --experiment_id     $EXPERIMENT_ID \
+                    --source            $SOURCE \
+                    --target            $TARGET \
+                    --seed              $SEED \
+                    --method            $METHOD \
+                    --architecture      $ARCHITECTURE \
+                    --model_base        $MODEL_BASE \
+                    --features          $FEATURES \
+                    --batch_size        $BATCH_SIZE \
+                    --augment           $AUGMENT \
+                    --from_weights      $FROM_WEIGHTS \
+
+            fi
+        done
+    done
+done
+
+./scripts/notify.sh "Finished job: ${METHOD}/${EXPERIMENT_ID_BASE} on GPU ${GPU_ID}."

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 DESCRIPTION="Test which optimizer performs better for domain adaptation."
 
-for OPTIMIZER in sgd adam
+for OPTIMIZER in sgd #adam
 do
-    EXPERIMENT_ID=optimizer_test_$OPTIMIZER
+    EXPERIMENT_ID=optimizer_test_mom_$OPTIMIZER
     METHOD=dage
 
     DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
@@ -11,7 +11,7 @@ do
     mkdir $DIR_NAME -p
     echo $DESCRIPTION > $DIR_NAME/description.txt
 
-    for LR in 0.1 0.01 0.001
+    for LR in 1 0.0001 #0.1 0.01 0.001
     do
         for SEED in 0 1 2 4 5
         do
