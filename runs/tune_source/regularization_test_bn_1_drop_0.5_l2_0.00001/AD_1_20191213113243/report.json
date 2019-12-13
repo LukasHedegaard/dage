@@ -1,0 +1,201 @@
+{
+    "back_pack": {
+        "precision": 0.6,
+        "recall": 0.8571428571428571,
+        "f1-score": 0.7058823529411764,
+        "support": 7
+    },
+    "bike": {
+        "precision": 1.0,
+        "recall": 0.8125,
+        "f1-score": 0.896551724137931,
+        "support": 16
+    },
+    "bike_helmet": {
+        "precision": 0.85,
+        "recall": 0.8947368421052632,
+        "f1-score": 0.8717948717948718,
+        "support": 19
+    },
+    "bookcase": {
+        "precision": 0.6666666666666666,
+        "recall": 0.5714285714285714,
+        "f1-score": 0.6153846153846153,
+        "support": 7
+    },
+    "bottle": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 11
+    },
+    "calculator": {
+        "precision": 0.75,
+        "recall": 0.42857142857142855,
+        "f1-score": 0.5454545454545454,
+        "support": 7
+    },
+    "desk_chair": {
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1-score": 0.8571428571428571,
+        "support": 8
+    },
+    "desk_lamp": {
+        "precision": 0.7,
+        "recall": 0.7777777777777778,
+        "f1-score": 0.7368421052631577,
+        "support": 9
+    },
+    "desktop_computer": {
+        "precision": 1.0,
+        "recall": 0.1,
+        "f1-score": 0.18181818181818182,
+        "support": 10
+    },
+    "file_cabinet": {
+        "precision": 0.42857142857142855,
+        "recall": 0.6,
+        "f1-score": 0.5,
+        "support": 10
+    },
+    "headphones": {
+        "precision": 1.0,
+        "recall": 0.625,
+        "f1-score": 0.7692307692307693,
+        "support": 8
+    },
+    "keyboard": {
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1-score": 0.6666666666666666,
+        "support": 5
+    },
+    "laptop_computer": {
+        "precision": 1.0,
+        "recall": 0.5263157894736842,
+        "f1-score": 0.6896551724137931,
+        "support": 19
+    },
+    "letter_tray": {
+        "precision": 0.3333333333333333,
+        "recall": 0.8181818181818182,
+        "f1-score": 0.4736842105263157,
+        "support": 11
+    },
+    "mobile_phone": {
+        "precision": 1.0,
+        "recall": 0.15384615384615385,
+        "f1-score": 0.2666666666666667,
+        "support": 26
+    },
+    "monitor": {
+        "precision": 1.0,
+        "recall": 0.35294117647058826,
+        "f1-score": 0.5217391304347826,
+        "support": 17
+    },
+    "mouse": {
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1-score": 0.6666666666666666,
+        "support": 7
+    },
+    "mug": {
+        "precision": 0.6,
+        "recall": 1.0,
+        "f1-score": 0.7499999999999999,
+        "support": 3
+    },
+    "paper_notebook": {
+        "precision": 0.5555555555555556,
+        "recall": 1.0,
+        "f1-score": 0.7142857142857143,
+        "support": 5
+    },
+    "pen": {
+        "precision": 1.0,
+        "recall": 0.6,
+        "f1-score": 0.7499999999999999,
+        "support": 5
+    },
+    "phone": {
+        "precision": 1.0,
+        "recall": 0.875,
+        "f1-score": 0.9333333333333333,
+        "support": 8
+    },
+    "printer": {
+        "precision": 0.4,
+        "recall": 0.6,
+        "f1-score": 0.48,
+        "support": 10
+    },
+    "projector": {
+        "precision": 0.47368421052631576,
+        "recall": 0.5,
+        "f1-score": 0.4864864864864865,
+        "support": 18
+    },
+    "punchers": {
+        "precision": 0.2857142857142857,
+        "recall": 0.15384615384615385,
+        "f1-score": 0.2,
+        "support": 13
+    },
+    "ring_binder": {
+        "precision": 0.25,
+        "recall": 0.2,
+        "f1-score": 0.22222222222222224,
+        "support": 5
+    },
+    "ruler": {
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1-score": 0.5,
+        "support": 2
+    },
+    "scissors": {
+        "precision": 0.8125,
+        "recall": 1.0,
+        "f1-score": 0.896551724137931,
+        "support": 13
+    },
+    "speaker": {
+        "precision": 0.18181818181818182,
+        "recall": 0.2857142857142857,
+        "f1-score": 0.2222222222222222,
+        "support": 21
+    },
+    "stapler": {
+        "precision": 0.4444444444444444,
+        "recall": 0.5,
+        "f1-score": 0.47058823529411764,
+        "support": 16
+    },
+    "tape_dispenser": {
+        "precision": 0.7647058823529411,
+        "recall": 0.7647058823529411,
+        "f1-score": 0.7647058823529412,
+        "support": 17
+    },
+    "trash_can": {
+        "precision": 0.29411764705882354,
+        "recall": 0.5,
+        "f1-score": 0.37037037037037035,
+        "support": 10
+    },
+    "accuracy": 0.5889212827988338,
+    "macro avg": {
+        "precision": 0.673906826969096,
+        "recall": 0.6370228624810169,
+        "f1-score": 0.6040627976531721,
+        "support": 343
+    },
+    "weighted avg": {
+        "precision": 0.6968524673482972,
+        "recall": 0.5889212827988338,
+        "f1-score": 0.5813834440831479,
+        "support": 343
+    }
+}
