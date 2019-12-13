@@ -24,11 +24,13 @@ def main(args):
     outputs_dir = Path(__file__).parent / 'runs' / args.method / args.experiment_id / '{}{}_{}_{}'.format( args.source, args.target, args.seed, timestamp)
     checkpoints_dir = outputs_dir / 'checkpoints'
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
+    checkpoints_path= checkpoints_dir / 'cp-best.ckpt'
     tensorboard_dir = outputs_dir / 'logs'
     tensorboard_dir.mkdir(parents=True, exist_ok=True)
     config_path = outputs_dir / 'config.json'
     model_path = outputs_dir / 'model.json'
     report_path = outputs_dir / 'report.json'
+    report_val_path = outputs_dir / 'report_validation.json'
 
     save_json(args.__dict__, config_path)
 
@@ -55,6 +57,7 @@ def main(args):
     }[args.method]()
 
     test_ds = ds['target']['test']
+    eval_ds = ds['target']['val']
 
     train_ds = {
         'tune_source': lambda: ds['source']['full'],
@@ -66,12 +69,13 @@ def main(args):
     }[args.method]()
 
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), test_ds['size'])
+    eval_ds  = (dsg.prep_ds(dataset=eval_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), eval_ds['size'])
     val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), val_ds['size'])
     train_ds = (dsg.prep_ds_train(dataset=train_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), train_ds['size'])
 
     # prepare optimizer
     optimizer = {
-        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=False, clipvalue=10),
+        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=True, clipvalue=10),
         'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False, clipvalue=10),
         'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate, clipvalue=10),
     }[args.optimizer]()
@@ -102,25 +106,31 @@ def main(args):
                                             penalty_filter_param=args.penalty_connection_filter_param ),
     }[args.method]()
 
-    (model, model_test), train = {
-        'single_stream'         : lambda :( models.single_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size, l2=args.l2, dropout=args.dropout),
-                                            models.single_stream.train ),
-        'two_stream_pair_embeds': lambda :( models.two_stream_pair_embeds.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm, dropout=args.dropout),
-                                            models.two_stream_pair_embeds.train ),
-        'two_stream_pair_logits': lambda :( models.two_stream_pair_logits.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-                                            models.two_stream_pair_logits.train ),
-        'two_stream_aux_denses' : lambda :( models.two_stream_pair_aux_dense.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, aux_dense_size=args.aux_dense_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-                                            models.two_stream_pair_aux_dense.train ),
+    (model, model_test) = {
+        'single_stream'         : lambda : models.single_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size, l2=args.l2, dropout=args.dropout),
+        'two_stream_pair_embeds': lambda : models.two_stream_pair_embeds.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm, dropout=args.dropout),
+        'two_stream_pair_logits': lambda : models.two_stream_pair_logits.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
+        'two_stream_aux_denses' : lambda : models.two_stream_pair_aux_dense.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, aux_dense_size=args.aux_dense_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
         'two_stream_pair_embeds_attention_mid' :  
-                                  lambda :( models.two_stream_pair_embeds_attention_mid.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-                                            models.two_stream_pair_embeds_attention_mid.train ),
+                                  lambda : models.two_stream_pair_embeds_attention_mid.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
         'two_stream_pair_embeds_attention_base' :  
-                                  lambda :( models.two_stream_pair_embeds_attention_base.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-                                            models.two_stream_pair_embeds_attention_base.train ),
+                                  lambda : models.two_stream_pair_embeds_attention_base.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
         'two_stream_pair_embeds_attention_mid_classwise' :  
-                                  lambda :( models.two_stream_pair_embeds_attention_mid_classwise.model(attention_activation=args.attention_activation, model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-                                            models.two_stream_pair_embeds_attention_mid_classwise.train ),
+                                  lambda : models.two_stream_pair_embeds_attention_mid_classwise.model(attention_activation=args.attention_activation, model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
     }[args.architecture]()
+
+    train = {
+        'regular':          partial(models.common.train, 
+                                    checkpoints_path=checkpoints_path,
+                                    learning_rate=args.learning_rate
+                                    ),
+        'flipping':         models.common.train_flipping,
+        'gradual_unfreeze': partial(models.common.train_gradual_unfreeze, 
+                                    model_base_name=args.model_base, 
+                                    checkpoints_path=checkpoints_path,
+                                    learning_rate=args.learning_rate
+                                    ),
+    }[args.training_regimen]
 
     if args.from_weights:
         weights_path = args.from_weights
@@ -137,7 +147,7 @@ def main(args):
         **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage', 'dage_a', 'multitask']},
     }[args.method]
 
-    fit_callbacks = callbacks(checkpoints_dir, tensorboard_dir, monitor=monitor, verbose=args.verbose)
+    fit_callbacks = callbacks(checkpoints_path, tensorboard_dir, monitor=monitor, verbose=args.verbose)
 
     augment = lambda x: x
     if args.augment:
@@ -161,6 +171,10 @@ def main(args):
     if 'test' in args.mode:
         x, s = test_ds
         evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
+
+    if 'validate' in args.mode:
+        x, s = eval_ds
+        evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_val_path, verbose=args.verbose, target_names=CLASS_NAMES )
 
 if __name__ == '__main__':
     args = parse_args()
