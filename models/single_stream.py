@@ -1,6 +1,5 @@
 import tensorflow as tf
 keras = tf.compat.v2.keras
-from math import ceil
 from models.common import freeze, get_output_shape, model_dense, model_preds
 
 def model(
@@ -30,32 +29,3 @@ def model(
     )
 
     return model, model
-
-
-def train(
-    model, 
-    datasource, 
-    datasource_size, 
-    epochs, 
-    batch_size, 
-    callbacks, 
-    verbose=1, 
-    val_datasource=None, 
-    val_datasource_size=None 
-):
-    validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
-    steps_per_epoch = ceil(datasource_size/batch_size)
-
-    if not val_datasource_size:
-        val_datasource = None
-        validation_steps = None
-
-    model.fit( 
-        x=datasource, 
-        validation_data=val_datasource,
-        epochs=epochs, 
-        steps_per_epoch=steps_per_epoch, 
-        validation_steps=validation_steps,
-        callbacks=callbacks,
-        verbose=verbose,
-    )
