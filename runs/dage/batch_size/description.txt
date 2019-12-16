@@ -1,1 +1,1 @@
-Test of the impact of batch size for DAGE-LDA.
+Test of the impact of batch size for DAGE-LDA. Compensated learning rate
