@@ -53,8 +53,8 @@ def model(
     }
 
     loss_weights = {
-        'preds'  : 0.5*(1-loss_alpha) if loss_weights_even else 0,
-        'preds_1': 0.5*(1-loss_alpha) if loss_weights_even else 1-loss_alpha,
+        'preds'  : (1-loss_weights_even)*(1-loss_alpha),
+        'preds_1': (  loss_weights_even)*(1-loss_alpha),
         'aux_out': loss_alpha
     }
     
