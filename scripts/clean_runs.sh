@@ -1,16 +1,16 @@
 # clean all
-# for d in ./runs/ccsa/vgg16_alpha_search_coarse_grad_ft
-# do
-#     if [[ $d != *_best ]]
-#     then
-#         echo $d/*/checkpoints
-#         rm -rf $d/*/checkpoints
-#         # rm -rf $d/*/logs
-#     fi
-# done
+for d in ./runs/*/*
+do
+    if [[ $d != *_best ]]
+    then
+        echo $d/*/checkpoints
+        rm -rf $d/*/checkpoints
+        # rm -rf $d/*/logs
+    fi
+done
 
 # clean faulty (no report.json)
-for D in ./runs/dsne/*
+for D in ./runs/*/*
 do
     if [[ $D != *_best ]]
     then
