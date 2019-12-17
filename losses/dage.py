@@ -9,6 +9,7 @@ class ConnectionType(Enum):
     ALL                 = 'ALL'
     SOURCE_TARGET       = 'SOURCE_TARGET'
     SOURCE_TARGET_PAIR  = 'SOURCE_TARGET_PAIR'
+    ST_INT_ALL_PEN      = 'ST_INT_ALL_PEN'
 
 class FilterType(Enum):
     ALL     = 'ALL'
@@ -126,8 +127,8 @@ def make_filter(
 ):
     filt_dict = {
         FilterType.ALL      : lambda x, p: x,
-        FilterType.KNN      : filt_k_max,
-        FilterType.KFN      : filt_k_min,
+        FilterType.KFN      : filt_k_max,
+        FilterType.KNN      : filt_k_min,
         FilterType.EPSILON  : filt_epsilon,
     }
     filt_fn = filt_dict[filter_type]
@@ -155,8 +156,8 @@ def connect_all(ys, yt, batch_size):
     return W, Wp
 
 
-def connect_source_target(ys, yt, batch_size):
-    W_all, Wp_all = connect_all(ys, yt, batch_size)
+def connect_source_target(ys, yt, batch_size, intrinsic=True, penalty=True):
+    W, Wp = connect_all(ys, yt, batch_size)
 
     N = 2*batch_size 
     tile_size = [batch_size, batch_size]
@@ -164,10 +165,12 @@ def connect_source_target(ys, yt, batch_size):
     I = ones(tile_size, dtype=tf.bool)
     ind = tf.concat([ tf.concat([O, I], axis=0),
                       tf.concat([I, O], axis=0) ], axis=1 )
-
     O = zeros([N,N], dtype=tf.bool)
-    W = tf.where(ind, W_all, O)
-    Wp = tf.where(ind, Wp_all, O)
+
+    if intrinsic:
+        W = tf.where(ind, W, O)
+    if penalty:
+        Wp = tf.where(ind, Wp, O)
 
     return W, Wp
 
@@ -201,6 +204,7 @@ def dage_loss(
         ConnectionType.ALL                : connect_all,
         ConnectionType.SOURCE_TARGET      : connect_source_target,
         ConnectionType.SOURCE_TARGET_PAIR : connect_source_target_pair,
+        ConnectionType.ST_INT_ALL_PEN     : partial(connect_source_target, intrinsic=True, penalty=False)
     }[connection_type]
 
     transform = {
