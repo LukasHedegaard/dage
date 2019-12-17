@@ -1,26 +1,29 @@
 #!/usr/bin/env bash
 DESCRIPTION="Test which optimizer performs better for domain adaptation."
 
-for OPTIMIZER in sgd #adam
+EXPERIMENT_ID_BASE=optimizer_test
+METHOD=multitask
+
+for OPTIMIZER in sgd sgd_mom adam 
 do
-    EXPERIMENT_ID=optimizer_test_mom_$OPTIMIZER
-    METHOD=dage
+    EXPERIMENT_ID=${EXPERIMENT_ID_BASE}_${OPTIMIZER}
 
     DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
-
     mkdir $DIR_NAME -p
     echo $DESCRIPTION > $DIR_NAME/description.txt
 
-    for LR in 1 0.0001 #0.1 0.01 0.001
+    for LR in 1 0.1 0.01 0.001 0.0001 
     do
         for SEED in 0 1 2 4 5
         do
-            for SOURCE in A 
+            for SOURCE in W #A D W
             do
-                for TARGET in D 
+                for TARGET in A #D W
                 do
                     if [ $SOURCE != $TARGET ]
                     then
+                        TIMESTAMP=$(date '+%Y%m%d%H%M%S')
+
                         python3 run.py \
                             --gpu_id            0 \
                             --learning_rate     $LR \
@@ -36,18 +39,20 @@ do
                             --epochs            30 \
                             --batch_size        16 \
                             --augment           0 \
-                            --loss_alpha        0.25 \
-                            --loss_weights_even 1 \
-                            --weight_type       indicator \
-                            --connection_type                   source_target \
-                            --connection_filter_type            knn \
-                            --connection_filter_param           1 \
-                            --penalty_connection_filter_type    knn \
-                            --connection_filter_param           1 \
-                            
+                            --timestamp         $TIMESTAMP \
+
+                        FT_RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
+
+                        if [ ! -f "$FT_RUN_DIR/report.json" ]; then
+                            rm -rf $FT_RUN_DIR
+                        else
+                            rm -rf $FT_RUN_DIR/checkpoints
+                        fi
                     fi
                 done
             done
         done
     done
 done
+
+./scripts/notify.sh "Finished job: ${METHOD}/${EXPERIMENT_ID_BASE} on GPU ${GPU_ID}."

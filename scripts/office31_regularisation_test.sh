@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 DESCRIPTION="Test which regularisation strategy works best. We test batch norm, dropout, and L2 here."
 
+EXPERIMENT_ID_BASE=regularization_test
+METHOD=multitask
+
 for BN in 0 1
 do
     for L2 in 0.0001 0.00001 0
     do
-
         for DROPOUT in 0 0.25 0.5
         do
-            EXPERIMENT_ID="regularization_test_bn${BN}_drop${DROPOUT}"
-            METHOD=dage
+            EXPERIMENT_ID="${EXPERIMENT_ID_BASE}_bn_${BN}_drop_${DROPOUT}_l2_${L2}"
 
             DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
-
             mkdir $DIR_NAME -p
             echo $DESCRIPTION > $DIR_NAME/description.txt
 
@@ -24,8 +24,10 @@ do
                     do
                         if [ $SOURCE != $TARGET ]
                         then
+                            TIMESTAMP=$(date '+%Y%m%d%H%M%S')
+
                             python3 run.py \
-                                --gpu_id            0 \
+                                --gpu_id            1 \
                                 --learning_rate     0.001 \
                                 --optimizer         adam \
                                 --dropout           $DROPOUT \
@@ -42,15 +44,15 @@ do
                                 --epochs            30 \
                                 --batch_size        16 \
                                 --augment           0 \
-                                --loss_alpha        0.75 \
-                                --loss_weights_even 0 \
-                                --weight_type       indicator \
-                                --connection_type                   source_target \
-                                --connection_filter_type            knn \
-                                --connection_filter_param           1 \
-                                --penalty_connection_filter_type    knn \
-                                --connection_filter_param           1 \
+                                --timestamp         $TIMESTAMP \
 
+                            FT_RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
+
+                            if [ ! -f "$FT_RUN_DIR/report.json" ]; then
+                                rm -rf $FT_RUN_DIR
+                            else
+                                rm -rf $FT_RUN_DIR/checkpoints
+                            fi
                         fi
                     done
                 done
@@ -58,3 +60,5 @@ do
         done
     done
 done
+
+./scripts/notify.sh "Finished job: ${METHOD}/${EXPERIMENT_ID_BASE} on GPU ${GPU_ID}."
