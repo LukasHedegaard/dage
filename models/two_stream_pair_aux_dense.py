@@ -1,7 +1,6 @@
 import tensorflow as tf
 keras = tf.compat.v2.keras
 from utils.dataset_gen import DTYPE
-from functools import reduce
 from layers import Pair
 from losses import dummy_loss
 from models.common import freeze, get_output_shape, model_dense, model_preds
