@@ -175,7 +175,8 @@ def office31_datasets(
     preprocess_input:Callable=None,
     shape=[224,224,3], 
     seed=1,
-    features='images'
+    features='images',
+    test_as_val=False
 ) -> Dict[str, Dict[str, Dict[str, Tuple[Dataset, int]]]]:
     ''' Create the datasets needed for evaluating the Office31 dataset
     Returns:
@@ -207,8 +208,14 @@ def office31_datasets(
 
     s_full, s_full_size         = dataset_from_dir(source_data_path, preprocess_input, shape, seed)
     s_train, _, s_train_size, _ = balanced_dataset_split_from_dir(source_data_path, n_source_samples, preprocess_input, shape, seed)
-    t_train, t_val, t_test, t_train_size, t_val_size, t_test_size \
-        = balanced_dataset_tvt_split_from_dir(target_data_path, n_target_samples, n_target_val_samples, preprocess_input, shape, seed)
+
+    if test_as_val == False:
+        t_train, t_val, t_test, t_train_size, t_val_size, t_test_size \
+            = balanced_dataset_tvt_split_from_dir(target_data_path, n_target_samples, n_target_val_samples, preprocess_input, shape, seed)
+    else:
+        t_train, t_test, t_train_size, t_test_size \
+            = balanced_dataset_split_from_dir(target_data_path, n_target_samples, preprocess_input, shape, seed)
+        t_val, t_val_size = None, 0
 
     return {
         'source': {

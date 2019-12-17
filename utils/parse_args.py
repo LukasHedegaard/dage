@@ -22,9 +22,9 @@ def parse_args():
      model_parser.add_argument('--num_unfrozen_base_layers', type=int, default=0, help='Number of unfrozen layers in base network. Default: 0')
      model_parser.add_argument('--embed_size', type=int, default=128, help='Size of embedding layer. Default: 128')
      model_parser.add_argument('--dense_size', type=int, default=1024, help='Size of first dense layer. Default: 1024')
-     model_parser.add_argument('--l2', type=float, default=0, help='L2 normalisation parameter. Default: 0')
+     model_parser.add_argument('--l2', type=float, default=1e-4, help='L2 normalisation parameter. Default: 1e-4')
      model_parser.add_argument('--batch_norm', type=int, default=1, help='Use batch normalisation layers. Default: 1')
-     model_parser.add_argument('--dropout', type=float, default=0.5, help='Dropout. Default: 0.5')
+     model_parser.add_argument('--dropout', type=float, default=0.25, help='Dropout. Default: 0.25')
      model_parser.add_argument('--aux_dense_size', type=int, default=31, help='Size of aux dense layer. Default: 31')
      model_parser.add_argument('--architecture', type=str, default='single_stream',
                               help='Architectures: '
@@ -44,12 +44,13 @@ def parse_args():
                                    'dage: Domain Adaptation using Graph Embedding. Should be used with two_stream architeture;'
                                    )
      loss_parser.add_argument('--loss_alpha', type=float, default=0.25, help='Weighting for distance-based domain adaption losses. Default: 0.25')
-     loss_parser.add_argument('--loss_weights_even', type=int, default=1, help='Use even weighting for source and target losses. Default: 1')
+     loss_parser.add_argument('--loss_weights_even', type=float, default=0.5, help='ratio of source to target loss weighting. For a value of 0, only the source is weighted.')
      loss_parser.add_argument('--connection_type', type=str, default="", 
-                              help='How the edge weights should be connected (Only applies for method=dage):'
+                              help='How the edge weights for the intrinsic graph should be connected (Only applies for method=dage):'
                                    'ALL: Inter and intra domain connections are made;'
                                    'SOURCE_TARGET: Intra domain connections are made;'
-                                   'SOURCE_TARGET_PAIR: Intra domain connections are made pairwise, according to how data is fed;' )
+                                   'SOURCE_TARGET_PAIR: Intra domain connections are made pairwise, according to how data is fed;'
+                                   'ST_INT_ALL_PEN: Inter and intra domain connections are made for the intrinsic graph, and only inter domain connection are made on the penalty graph ;' )
      loss_parser.add_argument('--weight_type', type=str, default="INDICATOR", 
                               help='How the edge weights are weighted (Only applies for method=dage):'
                                    'INDICATOR: Binary connection;'
@@ -72,6 +73,10 @@ def parse_args():
 
      # train
      train_parser = parser.add_argument_group(description='Training')
+     train_parser.add_argument('--training_regimen', type=str, default='regular', help='How train the mode:'
+                                   'regular: Train model using a regular model.fit;'
+                                   'flipping: Train the model, flipping which domain enters which stream on every batch;'
+                                   'gradual_unfreeze: Gradually unfreeze the base_model layers')
      train_parser.add_argument('--source', type=str, default='A', help='Source domain')
      train_parser.add_argument('--target', type=str, default='D', help='Target domain')
      train_parser.add_argument('--batch_size', '-b', type=int, default=16, help='Batch size. Default: 16')
@@ -89,10 +94,15 @@ def parse_args():
                                    help='Modes: '
                                         'train: perform training, skip evaluation;'
                                         'test: skip training, perform testing; '
-                                        'train_and_test: perform training and testing')
+                                        'train_and_validate: perform training and produce results for validation data; '
+                                        'train_and_test: perform training and testing; '
+                                        'train_test_validate: perform training and produce results for validation and test data; '
+                                        )
      train_parser.add_argument('--ratio', type=float, default=1, help='Ratio of negative to positive pairs for domain adaption. Default: 1')
      train_parser.add_argument('--shuffle_buffer_size', type=int, default=5000, help='Size of buffer used for shuffling')
      train_parser.add_argument('--verbose', type=int, default=1, help='Verbosity of training and evaluation')
+     train_parser.add_argument('--batch_repeats', type=int, default=1, help='Number of times to repeat the same batch during training. Default: 1')
+     train_parser.add_argument('--test_as_val', type=int, default=0, help='Use test data for validation. Default: 0')
 
      # optimizer
      optim_parser = parser.add_argument_group(description='Optimization')

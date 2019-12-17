@@ -48,16 +48,21 @@ def main(args):
     }[args.model_base] or None
 
 
-    ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=args.seed, features=args.features)
-
-    val_ds= {
-        **{ k: lambda: ds['target']['val']                             for k in ['tune_source', 'tune_target']},
-        **{ k: lambda: dsg.da_pair_repeat_dataset(ds['target']['val']) for k in ['ccsa', 'dsne', 'dage', 'multitask']},
-        **{ k: lambda: dsg.da_pair_alt_repeat_dataset(ds['target']['val']) for k in ['dage_a']},
-    }[args.method]()
+    ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=args.seed, features=args.features, test_as_val=args.test_as_val)
 
     test_ds = ds['target']['test']
-    eval_ds = ds['target']['val']
+    # eval_ds = ds['target']['val']
+
+    if args.test_as_val:
+        val_ds = ds['target']['test']
+    else:
+        val_ds = ds['target']['val']
+
+    val_ds= {
+        **{ k: lambda: val_ds                                 for k in ['tune_source', 'tune_target']},
+        **{ k: lambda: dsg.da_pair_repeat_dataset(val_ds)     for k in ['ccsa', 'dsne', 'dage', 'multitask']},
+        **{ k: lambda: dsg.da_pair_alt_repeat_dataset(val_ds) for k in ['dage_a']},
+    }[args.method]()
 
     train_ds = {
         'tune_source': lambda: ds['source']['full'],
@@ -69,13 +74,14 @@ def main(args):
     }[args.method]()
 
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), test_ds['size'])
-    eval_ds  = (dsg.prep_ds(dataset=eval_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), eval_ds['size'])
+    # eval_ds  = (dsg.prep_ds(dataset=eval_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), eval_ds['size'])
     val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), val_ds['size'])
     train_ds = (dsg.prep_ds_train(dataset=train_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), train_ds['size'])
 
     # prepare optimizer
     optimizer = {
-        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=True, clipvalue=10),
+        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=True, clipvalue=10),
+        'sgd_mom'   : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=True, clipvalue=10),
         'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False, clipvalue=10),
         'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate, clipvalue=10),
     }[args.optimizer]()
@@ -119,17 +125,15 @@ def main(args):
                                   lambda : models.two_stream_pair_embeds_attention_mid_classwise.model(attention_activation=args.attention_activation, model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
     }[args.architecture]()
 
+    val_freq = 3 if args.test_as_val else 1
+
     train = {
-        'regular':          partial(models.common.train, 
-                                    checkpoints_path=checkpoints_path,
-                                    learning_rate=args.learning_rate
-                                    ),
-        'flipping':         models.common.train_flipping,
-        'gradual_unfreeze': partial(models.common.train_gradual_unfreeze, 
-                                    model_base_name=args.model_base, 
-                                    checkpoints_path=checkpoints_path,
-                                    learning_rate=args.learning_rate
-                                    ),
+        'regular':          partial(models.common.train, checkpoints_path=checkpoints_path, val_freq=val_freq),
+        'flipping':         partial(models.common.train, checkpoints_path=checkpoints_path, val_freq=val_freq, flipping=True),
+        # 'flipping':         partial(models.common.train_flipping, checkpoints_path=checkpoints_path),
+        'batch_repeat':     partial(models.common.train, checkpoints_path=checkpoints_path, batch_repeats=args.batch_repeats),
+        # 'repeat_batch':     partial(models.common.train_repeat_batch, checkpoints_path=checkpoints_path, batch_repeats=args.batch_repeats),
+        'gradual_unfreeze': partial(models.common.train_gradual_unfreeze, model_base_name=args.model_base, checkpoints_path=checkpoints_path, architecture=args.architecture),
     }[args.training_regimen]
 
     if args.from_weights:
@@ -143,8 +147,8 @@ def main(args):
         f.write(model.to_json())
 
     monitor = {
-        **{k: 'val_acc' for k in ['tune_source', 'tune_target']},
-        **{k: 'val_preds_acc' for k in ['ccsa', 'dsne', 'dage', 'dage_a', 'multitask']},
+        **{k: 'val_loss' for k in ['tune_source', 'tune_target']},
+        **{k: 'val_preds_loss' for k in ['ccsa', 'dsne', 'dage', 'dage_a', 'multitask']},
     }[args.method]
 
     fit_callbacks = callbacks(checkpoints_path, tensorboard_dir, monitor=monitor, verbose=args.verbose)

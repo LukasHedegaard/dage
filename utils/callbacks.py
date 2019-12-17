@@ -16,7 +16,7 @@ class TerminateOnNegMetric(keras.callbacks.Callback):
 
 def checkpoint(checkpoints_dir, monitor='loss',verbose=True):
     return keras.callbacks.ModelCheckpoint(
-        filepath=str(checkpoints_dir / 'cp-best.ckpt'),
+        filepath=str(checkpoints_dir),
         monitor=monitor,
         save_best_only=True,
         save_weights_only=True,
@@ -29,7 +29,7 @@ def reduce_lr(monitor='loss', verbose=True):
     return keras.callbacks.ReduceLROnPlateau(
         monitor=monitor,
         factor=0.1,
-        patience=3,
+        patience=7,
         min_lr=1e-6,
         verbose=verbose
     )
@@ -39,7 +39,7 @@ def early_stop(monitor='loss', verbose=True):
     return keras.callbacks.EarlyStopping(
         monitor=monitor, 
         min_delta=0, 
-        patience=7, 
+        patience=10, 
         verbose=verbose, 
         mode='auto', 
         baseline=None, 
@@ -53,8 +53,8 @@ def tensorboard(tensorboard_dir):
 def all(checkpoints_dir, tensorboard_dir, monitor='loss', verbose=True):
     return [
         checkpoint(checkpoints_dir, monitor, verbose), 
-        reduce_lr(monitor, verbose), 
-        early_stop(monitor, verbose), 
+        # reduce_lr(monitor, verbose), 
+        # early_stop(monitor, verbose), 
         tensorboard(tensorboard_dir),
         TerminateOnNegMetric(),
     ]

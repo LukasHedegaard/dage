@@ -4,6 +4,7 @@ K = keras.backend
 DTYPE = tf.float32
 from math import ceil
 from utils.cyclical_learning_rate import CyclicLR
+from functools import reduce
 
 def get_output_shape(model):
     output_shape = model.layers[-1].output_shape
@@ -46,19 +47,19 @@ def model_dense(input_shape, dense_size, embed_size, l2=0.0001, batch_norm=False
     return model
 
 
-def model_preds(input_shape, output_shape, l2=0.0001):
+def model_preds(input_shape, output_shape, l2=0.0001, dropout=0.5):
     return keras.Sequential([
         keras.layers.Input(shape=input_shape),
-        keras.layers.Dropout(0.5),
+        keras.layers.Dropout(dropout),
         keras.layers.Dense(output_shape, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits', kernel_regularizer = keras.regularizers.l2(l=l2)),
         keras.layers.Activation('softmax', name='preds'),
     ], name='preds')
 
 
-def model_logits(input_shape, dense_size, l2=0.0001):
+def model_logits(input_shape, dense_size, l2=0.0001, dropout=0.5):
     return keras.Sequential([
         keras.layers.Input(shape=input_shape),
-        keras.layers.Dropout(0.5),
+        keras.layers.Dropout(dropout),
         keras.layers.Dense(dense_size, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits', kernel_regularizer = keras.regularizers.l2(l=l2)),
     ], name='logits')
 
@@ -79,6 +80,21 @@ def model_attention(input_shape, embed_size, temperature=1.0):
     return model
 
 
+def flip_elem(ds):
+    for e in iter(ds):
+        yield(e)
+        ins, outs = e
+        yield((
+            {'input_source': ins['input_target'], 'input_target': ins['input_source']},
+            {'preds': outs['preds_1'], 'preds_1':outs['preds'], 'aux_out': outs['aux_out']}
+        ))
+
+def repeat_elem(ds, count=2):
+    for e in iter(ds):
+        for _ in range(count):
+            yield(e)
+
+
 def train(
     model, 
     datasource, 
@@ -86,11 +102,14 @@ def train(
     epochs, 
     batch_size, 
     callbacks, 
+    batch_repeats=1,
+    flipping=False,
     checkpoints_path=None,
     verbose=1, 
     val_datasource=None, 
     val_datasource_size=None,
-    learning_rate=None
+    val_freq=1,
+    traingular_learning_rate=None
 ):
     validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
     steps_per_epoch = ceil(datasource_size/batch_size)
@@ -99,10 +118,18 @@ def train(
         val_datasource = None
         validation_steps = None
 
-    # if learning_rate:
-    #     base_lr, max_lr = learning_rate/4, learning_rate
-    #     cyc_lr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=steps_per_epoch*epochs//2, mode='triangular2')
-    #     callbacks = [cyc_lr, *callbacks]
+    if traingular_learning_rate:
+        base_lr, max_lr = traingular_learning_rate/4, traingular_learning_rate
+        cyc_lr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=steps_per_epoch*epochs//2, mode='triangular2')
+        callbacks = [cyc_lr, *callbacks]
+
+    if flipping:
+        datasource = flip_elem(datasource)
+        steps_per_epoch *= 2
+
+    if batch_repeats > 1:
+        datasource = repeat_elem(datasource, batch_repeats)
+        steps_per_epoch *= batch_repeats
 
     model.fit( 
         datasource,
@@ -112,10 +139,13 @@ def train(
         validation_steps=validation_steps,
         callbacks=callbacks,
         verbose=verbose,
+        validation_freq=val_freq,
     )
 
     if checkpoints_path:
-        model.load_weights(str(checkpoints_path))
+        if verbose:
+            print("Restoring best checkpoint")
+        model.load_weights(str(checkpoints_path.resolve()))
 
 
 def train_flipping(
@@ -125,10 +155,14 @@ def train_flipping(
     epochs, 
     batch_size, 
     callbacks, 
+    checkpoints_path=None,
     verbose=1, 
     val_datasource=None, 
     val_datasource_size=None 
 ):
+    if verbose:
+        print('Train flipping')
+
     validation_steps = ceil(val_datasource_size/batch_size) if val_datasource_size else None
     steps_per_epoch = ceil(datasource_size/batch_size)
 
@@ -137,6 +171,7 @@ def train_flipping(
         validation_steps = None
 
     train_iter = iter(datasource)
+    val_loss_best = float("inf")
     
     for e in range(1,epochs+1):
         if verbose:
@@ -178,13 +213,30 @@ def train_flipping(
                 '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], val_loss_avg[i]) for i in range(len(val_loss_avg))])
             ))
 
+        if val_loss_avg[1] < val_loss_best:
+            val_loss_best = val_loss_avg[1]
+            if verbose:
+                print("val_preds_loss improved to {}".format(val_loss_best))
+            if checkpoints_path:
+                model.save(str(checkpoints_path.resolve()))
+    
+    if checkpoints_path:
+        if verbose:
+            print("Restoring best checkpoint")
+        model.load_weights(str(checkpoints_path.resolve()))
 
-def recompile(model):
+
+def recompile(model, architecture='single_stream'):
+    if architecture=='single_stream':
+        metric = K.get_value(model.metrics)
+    else:
+        metric = {'preds':'accuracy', 'preds_1':'accuracy'} # there seems to be an issue with K.get_value(model.metrics) in case of two-stream architectures
+    
     model.compile(
         loss=K.get_value(model.loss),
         loss_weights=K.get_value(model.loss_weights),
         optimizer=K.get_value(model.optimizer),
-        metrics={'preds':'accuracy', 'preds_1':'accuracy'}, # there seems to be a bug when using K.get_value(model.metrics) for our two-stream models
+        metrics=metric
     )
 
 
@@ -196,8 +248,9 @@ def train_gradual_unfreeze(
     epochs, 
     batch_size, 
     callbacks, 
+    architecture='single_stream',
     checkpoints_path=None,
-    learning_rate=1e-4,
+    triangular_learning_rate=None,
     lr_fact=0.25,
     verbose=1, 
     val_datasource=None, 
@@ -217,19 +270,21 @@ def train_gradual_unfreeze(
         'resnet101v2': (24, 6),
     }[model_base_name]
 
-    # base_lr, max_lr = learning_rate/4, learning_rate
+    if triangular_learning_rate:
+        base_lr, max_lr = triangular_learning_rate/4, triangular_learning_rate
 
     for num_unfreeze in range(step_size, max_unfreeze+1, step_size) :
         freeze(model_base, num_unfreeze)
-        recompile(model)
+        recompile(model, architecture)
 
         if verbose:
             print('Training with {} base_model layers unfrozen.'.format(num_unfreeze))
             model.summary()
 
-        # cyc_lr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=steps_per_epoch*epochs//2, mode='triangular2')
-        # base_lr, max_lr = lr_fact*base_lr, lr_fact*max_lr
-        # callbacks = [cyc_lr, *callbacks]
+        if triangular_learning_rate:
+            cyc_lr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=steps_per_epoch*epochs//2, mode='triangular2')
+            base_lr, max_lr = lr_fact*base_lr, lr_fact*max_lr
+            callbacks = [cyc_lr, *callbacks]
 
         model.fit( 
             datasource,
