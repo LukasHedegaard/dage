@@ -13,9 +13,10 @@ class ConnectionType(Enum):
 
 class FilterType(Enum):
     ALL     = 'ALL'
-    KNN     = 'KNN'
-    KFN     = 'KFN'
-    EPSILON = 'EPSILON'
+    KNN     = 'KNN'     # k-nearest-neighbours
+    KFN     = 'KFN'     # k-farthest-neighbours
+    KSD     = 'KSD'     # k-smallest-distances
+    EPSILON = 'EPSILON' # epsilon margin
 
 class WeightType(Enum):
     INDICATOR   = 'INDICATOR'
@@ -70,30 +71,58 @@ def get_filt_dists(W_Wp, xs, xt):
     return W_dists, Wp_dists
 
 
-def filt_k_max(x, k):
+def filt_k_max(dists, k):
     k = tf.constant(k, dtype=tf.int32)
-    N = tf.shape(x)[0]
-    vals, inds = tf.nn.top_k(x, k=k)
+    N = tf.shape(dists)[0]
+    vals, inds = tf.nn.top_k(dists, k=k)
     inds = tf.where(tf.greater(vals, tf.zeros_like(vals, dtype=DTYPE)), inds, -tf.ones_like(inds))
     inds = tf.sparse.to_indicator(
         sp_input=tf.sparse.from_dense(inds+1),
         vocab_size=N+1
     )[:,1:]
-    return tf.where(inds, x, tf.zeros_like(x, dtype=DTYPE))
+    return tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
 
 
-def filt_k_min(x, k):
+def filt_k_min(dists, k):
     k = tf.constant(k, dtype=tf.int32)
-    N = tf.shape(x)[0]
-    very_neg = tf.multiply(tf.constant(DTYPE.max, dtype=DTYPE), tf.ones_like(x, dtype=DTYPE))
-    neg_x = -tf.where(tf.equal(x, tf.zeros_like(x, dtype=DTYPE)), very_neg, x)
-    vals, inds = tf.nn.top_k(neg_x, k=k)
+    N = tf.shape(dists)[0]
+    discarded = tf.multiply(tf.constant(DTYPE.madists, dtype=DTYPE), tf.ones_like(dists, dtype=DTYPE))
+    neg_dists = -tf.where(tf.equal(dists, tf.zeros_like(dists, dtype=DTYPE)), discarded, dists)
+    vals, inds = tf.nn.top_k(neg_dists, k=k)
     inds = tf.where(tf.less(vals, tf.zeros_like(vals, dtype=DTYPE)), inds, -tf.ones_like(inds))
     inds = tf.sparse.to_indicator(
         sp_input=tf.sparse.from_dense(inds+1),
         vocab_size=N+1
     )[:,1:]
-    return tf.where(inds, x, tf.zeros_like(x, dtype=DTYPE))
+    return tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
+
+
+def filt_k_min_any(dists, k):
+    k = tf.constant(1, dtype=tf.int32)
+
+    # select only the upper diagonal
+    upper = tf.matrix_band_part(dists, 0, -1) - tf.diag(tf.diag_part(dists))
+    orig_shape = dists.get_shape().as_list()
+    # reshape to vector
+    flattened = tf.reshape(upper, [-1, tf.math.reduce_prod(orig_shape)]) 
+
+    # find k smalles
+    discarded = tf.multiply(tf.constant(DTYPE.max, dtype=DTYPE), tf.ones_like(flattened, dtype=DTYPE))
+    neg_flat = -tf.where(tf.equal(flattened, tf.zeros_like(flattened, dtype=DTYPE)), discarded, flattened)
+
+    # filter k smallest
+    _, inds_flat = tf.nn.top_k(neg_flat, k=k)
+
+    # transform into dense indicator
+    inds_dense = tf.sparse.to_indicator(
+        sp_input=tf.sparse.from_dense(inds_flat),
+        vocab_size=flattened.get_shape().as_list()[-1]
+    )
+
+    inds_upper = tf.cast(tf.reshape(inds_dense, orig_shape), dtype=DTYPE)
+    inds = tf.cast(tf.add(inds_upper, tf.transpose(inds_upper)), dtype=tf.bool)
+
+    return tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
 
 
 def filt_epsilon(x, eps):
@@ -127,8 +156,9 @@ def make_filter(
 ):
     filt_dict = {
         FilterType.ALL      : lambda x, p: x,
-        FilterType.KFN      : filt_k_max,
-        FilterType.KNN      : filt_k_min,
+        FilterType.KNN      : filt_k_max,
+        FilterType.KFN      : filt_k_min,
+        FilterType.KSD      : filt_k_min_any,
         FilterType.EPSILON  : filt_epsilon,
     }
     filt_fn = filt_dict[filter_type]
@@ -265,46 +295,9 @@ def dage_attention_loss(
     filter_param=1,
     penalty_filter_param=1
 ): 
-    # connection_type     = str2enum(connection_type, ConnectionType)
-    # weight_type         = str2enum(weight_type, WeightType)
-    # filter_type         = str2enum(filter_type, FilterType)
-    # penalty_filter_type = str2enum(penalty_filter_type, FilterType)
-
-    # connect = {
-    #     ConnectionType.ALL                : connect_all,
-    #     ConnectionType.SOURCE_TARGET      : connect_source_target,
-    #     ConnectionType.SOURCE_TARGET_PAIR : connect_source_target_pair,
-    # }[connection_type]
-
-    # transform = {
-    #     WeightType.INDICATOR : lambda W_Wp: (dist2indicator(W_Wp[0]), dist2indicator(W_Wp[1])),
-    #     WeightType.GAUSSIAN  : lambda W_Wp: (dist2gaussian(W_Wp[0]), dist2gaussian(W_Wp[1])),
-    # }[weight_type]
-
-    # filt = make_filter(filter_type, penalty_filter_type, filter_param, penalty_filter_param)
-
-    # if filter_type==FilterType.ALL and penalty_filter_type==FilterType.ALL and weight_type==WeightType.INDICATOR:
-    #     # performance optimisation
-    #     def make_weights(xs, xt, ys, yt, batch_size):
-    #         W, Wp = connect(ys, yt, batch_size)
-    #         return tf.cast(W, dtype=DTYPE), tf.cast(Wp, dtype=DTYPE)
-    # else:
-    #     def make_weights(xs, xt, ys, yt, batch_size):
-    #         W, Wp = transform(filt( W_Wp=connect(ys, yt, batch_size),
-    #                                 xs=xs,
-    #                                 xt=xt ))
-    #         return tf.cast(W, dtype=DTYPE), tf.cast(Wp, dtype=DTYPE)
-
 
     def loss_fn(lbl_src, lbl_tgt, xs, xt, A, Ap):
-        # ys = tf.argmax(tf.cast(lbl_src, dtype=tf.int32), axis=1)
-        # yt = tf.argmax(tf.cast(lbl_tgt, dtype=tf.int32), axis=1)
         θϕ = tf.transpose(tf.concat([xs,xt], axis=0))
-
-        # batch_size = tf.shape(xs)[0]
-
-        # construct loss for bad attention
-        # W, Wp = make_weights(xs, xt, ys, yt, batch_size)
 
         # construct Weight matrix
         W = A #tf.multiply(W, A)
@@ -326,43 +319,3 @@ def dage_attention_loss(
 
         return loss
     return loss_fn
-
-
-# Predefined configurations
-# dage_full_loss = dage_loss(
-#     connection_type=ConnectionType.ALL, 
-#     weight_type=WeightType.INDICATOR,
-#     filter_type=FilterType.ALL,
-#     penalty_filter_type=FilterType.ALL,
-# )
-
-# dage_full_across_loss = dage_loss(
-#     connection_type=ConnectionType.SOURCE_TARGET, 
-#     weight_type=WeightType.INDICATOR,
-#     filter_type=FilterType.ALL,
-#     penalty_filter_type=FilterType.ALL,
-# )
-
-# dage_pair_across_loss = dage_loss(
-#     connection_type=ConnectionType.SOURCE_TARGET_PAIR, 
-#     weight_type=WeightType.INDICATOR,
-#     filter_type=FilterType.ALL,
-#     penalty_filter_type=FilterType.ALL,
-# )
-
-# dage_ccsa_like_loss = dage_loss(
-#     connection_type=ConnectionType.SOURCE_TARGET_PAIR, 
-#     weight_type=WeightType.INDICATOR,
-#     filter_type=FilterType.ALL,
-#     penalty_filter_type=FilterType.EPSILON,
-#     penalty_filter_param=1
-# )
-
-# dage_dsne_like_loss = dage_loss(
-#     connection_type=ConnectionType.SOURCE_TARGET, 
-#     weight_type=WeightType.INDICATOR,
-#     filter_type=FilterType.KFN,
-#     penalty_filter_type=FilterType.KNN,
-#     filter_param=1,
-#     penalty_filter_param=1
-# )
