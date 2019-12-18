@@ -1,6 +1,6 @@
 import argparse
 
-def parse_args():
+def parse_args(raw_args=None):
      parser = argparse.ArgumentParser(description='Perform Supervised Domain Adaption')
 
      info_parser = parser.add_argument_group(description='Info')
@@ -106,8 +106,8 @@ def parse_args():
 
      # optimizer
      optim_parser = parser.add_argument_group(description='Optimization')
-     optim_parser.add_argument('--optimizer', type=str, default='adam', help='optimizer')
-     optim_parser.add_argument('--learning_rate', type=float, default=0.001, help='learning rate')
+     optim_parser.add_argument('--optimizer', type=str, default='adam', help='Optimizer')
+     optim_parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
+     optim_parser.add_argument('--momentum', type=float, default=0.9, help='Momentum')
      
-     
-     return parser.parse_args()
+     return parser.parse_args(raw_args)

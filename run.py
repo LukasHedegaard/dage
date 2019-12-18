@@ -15,7 +15,7 @@ from functools import partial
 from timeit import default_timer as timer
 import losses as losses
 
-def main(args):
+def run(args):
     if args.gpu_id:
         setup_gpu(args.gpu_id, args.verbose)
 
@@ -80,9 +80,9 @@ def main(args):
 
     # prepare optimizer
     optimizer = {
-        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.0, nesterov=True, clipvalue=10),
-        'sgd_mom'   : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=True, clipvalue=10),
-        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False, clipvalue=10),
+        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=args.momentum, nesterov=True, clipvalue=10),
+        # 'sgd_mom'   : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=True, clipvalue=10),
+        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=args.momentum, beta_2=0.999, amsgrad=False, clipvalue=10),
         'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate, clipvalue=10),
     }[args.optimizer]()
 
@@ -172,14 +172,22 @@ def main(args):
         if args.verbose:
             print("Completed training in {} seconds".format(train_time))
 
+    result = 0
+
+    # if 'validate' in args.mode:
+    #     x, s = eval_ds
+    #     res = evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_val_path, verbose=args.verbose, target_names=CLASS_NAMES )
+    
     if 'test' in args.mode:
         x, s = test_ds
-        evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
+        result = evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
 
-    if 'validate' in args.mode:
-        x, s = eval_ds
-        evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_val_path, verbose=args.verbose, target_names=CLASS_NAMES )
+    return result
+
+def main(raw_args):
+    args = parse_args(raw_args)
+    result = run(args)
+    return result
 
 if __name__ == '__main__':
-    args = parse_args()
-    main(args)
+    main()
