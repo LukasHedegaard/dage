@@ -80,13 +80,14 @@ def filt_k_max(dists, k):
         sp_input=tf.sparse.from_dense(inds+1),
         vocab_size=N+1
     )[:,1:]
-    return tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
+    filt_dists = tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
+    return tf.maximum(filt_dists, tf.transpose(filt_dists))
 
 
 def filt_k_min(dists, k):
     k = tf.constant(k, dtype=tf.int32)
     N = tf.shape(dists)[0]
-    discarded = tf.multiply(tf.constant(DTYPE.madists, dtype=DTYPE), tf.ones_like(dists, dtype=DTYPE))
+    discarded = tf.multiply(tf.constant(DTYPE.max, dtype=DTYPE), tf.ones_like(dists, dtype=DTYPE))
     neg_dists = -tf.where(tf.equal(dists, tf.zeros_like(dists, dtype=DTYPE)), discarded, dists)
     vals, inds = tf.nn.top_k(neg_dists, k=k)
     inds = tf.where(tf.less(vals, tf.zeros_like(vals, dtype=DTYPE)), inds, -tf.ones_like(inds))
@@ -94,15 +95,17 @@ def filt_k_min(dists, k):
         sp_input=tf.sparse.from_dense(inds+1),
         vocab_size=N+1
     )[:,1:]
-    return tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
+    filt_dists = tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
+    return tf.maximum(filt_dists, tf.transpose(filt_dists))
 
 
 def filt_k_min_any(dists, k):
-    k = tf.constant(1, dtype=tf.int32)
-
+    k = tf.constant(k, dtype=tf.int32)
+    orig_shape = tf.shape(dists)
+    
     # select only the upper diagonal
     upper = tf.matrix_band_part(dists, 0, -1) - tf.diag(tf.diag_part(dists))
-    orig_shape = dists.get_shape().as_list()
+
     # reshape to vector
     flattened = tf.reshape(upper, [-1, tf.math.reduce_prod(orig_shape)]) 
 
@@ -116,7 +119,7 @@ def filt_k_min_any(dists, k):
     # transform into dense indicator
     inds_dense = tf.sparse.to_indicator(
         sp_input=tf.sparse.from_dense(inds_flat),
-        vocab_size=flattened.get_shape().as_list()[-1]
+        vocab_size=tf.shape(flattened)[-1]
     )
 
     inds_upper = tf.cast(tf.reshape(inds_dense, orig_shape), dtype=DTYPE)
@@ -156,8 +159,8 @@ def make_filter(
 ):
     filt_dict = {
         FilterType.ALL      : lambda x, p: x,
-        FilterType.KNN      : filt_k_max,
-        FilterType.KFN      : filt_k_min,
+        FilterType.KNN      : filt_k_min,
+        FilterType.KFN      : filt_k_max,
         FilterType.KSD      : filt_k_min_any,
         FilterType.EPSILON  : filt_epsilon,
     }
