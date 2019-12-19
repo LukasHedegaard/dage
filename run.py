@@ -14,6 +14,7 @@ from utils.gpu import setup_gpu
 from functools import partial
 from timeit import default_timer as timer
 import losses as losses
+from shutil import rmtree
 
 def run(args):
     if args.gpu_id:
@@ -182,9 +183,17 @@ def run(args):
         x, s = test_ds
         result = evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
 
+
+    if args.delete_checkpoint:
+        try:
+            rmtree(str(checkpoints_dir.resolve()))
+        except:
+            pass
+
+
     return result
 
-def main(raw_args):
+def main(raw_args=None):
     args = parse_args(raw_args)
     result = run(args)
     return result

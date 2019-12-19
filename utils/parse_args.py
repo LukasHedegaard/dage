@@ -9,6 +9,7 @@ def parse_args(raw_args=None):
 
      os_parser = parser.add_argument_group(description='OS')
      os_parser.add_argument('--gpu_id', type=str, default='2', help='Which GPU to use. Default: 2')
+     os_parser.add_argument('--delete_checkpoint', type=str, default='2', help='Delete checkpoint after model training. Default: 0')
      
      # model
      model_parser = parser.add_argument_group(description='Model')
