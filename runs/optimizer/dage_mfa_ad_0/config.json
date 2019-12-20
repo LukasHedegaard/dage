@@ -21,7 +21,7 @@
     "lr_decay_min": 1e-06,
     "lr_max": 0.01,
     "lr_min": 1e-07,
-    "n_calls": 15,
+    "n_calls": 30,
     "n_random_starts": 10,
     "noise": null,
     "obj_fun_path": null,
