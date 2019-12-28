@@ -7,7 +7,7 @@
     "dropout_max": 0.8,
     "dropout_min": 0.1,
     "from_checkpoint": "",
-    "id": "dage_mfa_ft_fix_wa",
+    "id": "dage_lda_ft_fix_da",
     "inv_mom_max": 0.5,
     "inv_mom_min": 0.01,
     "l2_max": 0.001,
