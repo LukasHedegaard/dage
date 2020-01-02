@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-DESCRIPTION="Test of the optimal alpha value for CCSA."
+DESCRIPTION="Test of the flipping vs non-flipping training regimen for CCSA."
 
 METHOD=ccsa
 GPU_ID=1
@@ -11,17 +11,17 @@ EPOCHS=20
 FEATURES=vgg16
 BATCH_SIZE=16
 AUGMENT=0
-EXPERIMENT_ID_BASE="alpha_search_light"
+ALPHA=0.25
 MODE="train_test_validate"
-TRAINING_REGIMEN=regular
 
-for ALPHA in 0 0.1 0.25 0.5 0.75 0.9
+for LOSS_WEIGHTING in 0 0.5 
 do
+    EXPERIMENT_ID_BASE="flip_test_${TRAINING_REGIMEN}_${LOSS_WEIGHTING}_v2"
     for SEED in 0 1 2 3 4
     do
-        for SOURCE in A #D W
+        for SOURCE in W #A D W
         do
-            for TARGET in D #A D W
+            for TARGET in A #D W
             do
                 if [ $SOURCE != $TARGET ]
                 then
@@ -33,7 +33,7 @@ do
                     TIMESTAMP=$(date '+%Y%m%d%H%M%S')
 
                     python3 run.py \
-                        --training_regimen  $TRAINING_REGIMEN \
+                        --training_regimen  flipping \
                         --timestamp         $TIMESTAMP \
                         --learning_rate     $LEARNING_RATE \
                         --epochs            $EPOCHS \
@@ -51,15 +51,16 @@ do
                         --augment           $AUGMENT \
                         --loss_alpha        $ALPHA \
                         --mode              $MODE \
+                        --loss_weights_even $LOSS_WEIGHTING \
 
                     # delete checkpoint
-                    # RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
+                    RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
 
-                    # if [ ! -f "$RUN_DIR/report.json" ]; then
-                    #     rm -rf $RUN_DIR
-                    # else
-                    #     rm -rf $RUN_DIR/checkpoints
-                    # fi
+                    if [ ! -f "$RUN_DIR/report.json" ]; then
+                        rm -rf $RUN_DIR
+                    else
+                        rm -rf $RUN_DIR/checkpoints
+                    fi
                 fi
             done
         done

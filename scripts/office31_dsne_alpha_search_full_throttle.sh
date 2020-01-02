@@ -1,24 +1,29 @@
 #!/usr/bin/env bash
-DESCRIPTION="Multitask training. 
-Here, we use the weights from source tuning as a starting point."
+DESCRIPTION="d-SNE using gradual unfreeze. 
+We repeat the test for multiple weightings of the aux loss vs the cross-entropy losses.
+The weights from source tuning are used as a starting point. 
+We perform the gradual unfreeze mechanism within this script, first training only new layers until convergence.
+We then reduce the learing rate, and perform training again, with some base-layers unfrozen, this time using the weights from the previous iteration as starting point.
+This is repeated, each time unfreezing more layers."
 
-METHOD=multitask
-GPU_ID=0
+METHOD=dsne
+GPU_ID=3
 OPTIMIZER=adam
 ARCHITECTURE=two_stream_pair_embeds
-MODEL_BASE=vgg16
+MODEL_BASE=resnet101v2
 FEATURES=images
-BATCH_SIZE=16
-AUGMENT=0
-EXPERIMENT_ID_BASE="${MODEL_BASE}_grad"
+BATCH_SIZE=12
+AUGMENT=1
+EXPERIMENT_ID_BASE="${MODEL_BASE}_alpha_search"
+MODE="train_test_validate"
 
-for LEARNING_RATE in 1e-5 #1e-6 1e-7
+for ALPHA in 0.25 0.5 0.9
 do
-    for SEED in 0 #1 #2 3 4 
+    for SEED in 0 1 2 3 4
     do
-        for SOURCE in D #A D W
+        for SOURCE in A W D
         do
-            for TARGET in A #A D W
+            for TARGET in D A W
             do
                 if [ $SOURCE != $TARGET ]
                 then
@@ -36,7 +41,7 @@ do
                         --num_unfrozen_base_layers 0 \
                         --training_regimen  regular \
                         --timestamp         $TIMESTAMP_OLD \
-                        --learning_rate     $LEARNING_RATE \
+                        --learning_rate     1e-5 \
                         --epochs            15 \
                         --gpu_id            $GPU_ID \
                         --optimizer         $OPTIMIZER \
@@ -51,16 +56,12 @@ do
                         --batch_size        $BATCH_SIZE \
                         --augment           $AUGMENT \
                         --from_weights      $FROM_WEIGHTS \
-                        # --num_unfrozen_base_layers 12 \
+                        --loss_alpha        $ALPHA \
+                        --mode              $MODE \
 
-                    # RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
+                    FROM_WEIGHTS_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP_OLD}/checkpoints
+                    FROM_WEIGHTS="$FROM_WEIGHTS_DIR/cp-best.ckpt"
 
-                    # for FROM_WEIGHTS_DIR in ./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}*
-                    # do
-                    #     FROM_WEIGHTS=$FROM_WEIGHTS_DIR/checkpoints/cp-best.ckpt
-                    #     echo "Found ${FROM_WEIGHTS}"
-                    
-                    FROM_WEIGHTS="./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP_OLD}/checkpoints/cp-best.ckpt"
                     EXPERIMENT_ID="${EXPERIMENT_ID_BASE}_coarse_grad_ft"
                     DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
                     mkdir $DIR_NAME -p
@@ -85,19 +86,20 @@ do
                         --batch_size        $BATCH_SIZE \
                         --augment           $AUGMENT \
                         --from_weights      $FROM_WEIGHTS \
+                        --loss_alpha        $ALPHA \
+                        --mode              $MODE \
                         --timestamp         $TIMESTAMP \
 
-                    # RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
+                    # delete checkpoint
+                    FT_RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
 
-                    # if [ ! -f "$RUN_DIR/report.json" ]; then
-                    #     rm -rf $RUN_DIR
-                    # else
-                    #     rm -rf $RUN_DIR/checkpoints
-                    #     rm -rf $FE_RUN_DIR/checkpoints
-                    # fi
+                    if [ ! -f "$FT_RUN_DIR/report.json" ]; then
+                        rm -rf $FT_RUN_DIR
+                    else
+                        rm -rf $FT_RUN_DIR/checkpoints
+                        rm -rf $FE_RUN_DIR/checkpoints
+                    fi
 
-                    #     break
-                    # done
                 fi
             done
         done

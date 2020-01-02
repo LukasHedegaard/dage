@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-DESCRIPTION="Test of the optimal alpha value for CCSA."
+DESCRIPTION="Test of a batch repeating training regimen for CCSA."
 
 METHOD=ccsa
 GPU_ID=1
@@ -11,17 +11,18 @@ EPOCHS=20
 FEATURES=vgg16
 BATCH_SIZE=16
 AUGMENT=0
-EXPERIMENT_ID_BASE="alpha_search_light"
+ALPHA=0.25
 MODE="train_test_validate"
-TRAINING_REGIMEN=regular
+LOSS_WEIGHTING=0.5 
 
-for ALPHA in 0 0.1 0.25 0.5 0.75 0.9
+for BATCH_REPEATS in 1 2 3 4 5 10 
 do
-    for SEED in 0 1 2 3 4
+    EXPERIMENT_ID_BASE="batch_repeat_${BATCH_REPEATS}"
+    for SEED in 5 6 7 8 9 #0 1 2 3 4
     do
-        for SOURCE in A #D W
+        for SOURCE in W #A D W
         do
-            for TARGET in D #A D W
+            for TARGET in A #D W
             do
                 if [ $SOURCE != $TARGET ]
                 then
@@ -33,7 +34,7 @@ do
                     TIMESTAMP=$(date '+%Y%m%d%H%M%S')
 
                     python3 run.py \
-                        --training_regimen  $TRAINING_REGIMEN \
+                        --training_regimen  batch_repeat \
                         --timestamp         $TIMESTAMP \
                         --learning_rate     $LEARNING_RATE \
                         --epochs            $EPOCHS \
@@ -51,15 +52,17 @@ do
                         --augment           $AUGMENT \
                         --loss_alpha        $ALPHA \
                         --mode              $MODE \
+                        --loss_weights_even $LOSS_WEIGHTING \
+                        --batch_repeats     $BATCH_REPEATS \
 
                     # delete checkpoint
-                    # RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
+                    RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
 
-                    # if [ ! -f "$RUN_DIR/report.json" ]; then
-                    #     rm -rf $RUN_DIR
-                    # else
-                    #     rm -rf $RUN_DIR/checkpoints
-                    # fi
+                    if [ ! -f "$RUN_DIR/report.json" ]; then
+                        rm -rf $RUN_DIR
+                    else
+                        rm -rf $RUN_DIR/checkpoints
+                    fi
                 fi
             done
         done

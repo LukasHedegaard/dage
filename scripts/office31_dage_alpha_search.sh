@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-DESCRIPTION="Test of the optimal alpha value for CCSA."
+DESCRIPTION="Test of the optimal alpha value for DAGE."
 
-METHOD=ccsa
-GPU_ID=1
+METHOD=dage
+GPU_ID=2
 OPTIMIZER=adam
 LEARNING_RATE=1e-4
 ARCHITECTURE=two_stream_pair_embeds
@@ -15,7 +15,7 @@ EXPERIMENT_ID_BASE="alpha_search_light"
 MODE="train_test_validate"
 TRAINING_REGIMEN=regular
 
-for ALPHA in 0 0.1 0.25 0.5 0.75 0.9
+for ALPHA in 0.1 0.25 0.5 0.75 0.9
 do
     for SEED in 0 1 2 3 4
     do
@@ -51,6 +51,10 @@ do
                         --augment           $AUGMENT \
                         --loss_alpha        $ALPHA \
                         --mode              $MODE \
+                        --connection_type                   source_target \
+                        --connection_filter_type            all \
+                        --penalty_connection_filter_type    all \
+                        --weight_type                       indicator \
 
                     # delete checkpoint
                     # RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}

@@ -1,68 +1,31 @@
 #!/usr/bin/env bash
-DESCRIPTION="d-SNE using gradual unfreeze. 
-We repeat the test for multiple weightings of the aux loss vs the cross-entropy losses.
-The weights from source tuning are used as a starting point. 
-We perform the gradual unfreeze mechanism within this script, first training only new layers until convergence.
-We then reduce the learing rate, and perform training again, with some base-layers unfrozen, this time using the weights from the previous iteration as starting point.
-This is repeated, each time unfreezing more layers."
+DESCRIPTION="Test of the optimal alpha value for DSNE."
 
 METHOD=dsne
 GPU_ID=3
 OPTIMIZER=adam
+LEARNING_RATE=1e-4
 ARCHITECTURE=two_stream_pair_embeds
-MODEL_BASE=resnet101v2
-FEATURES=images
-BATCH_SIZE=12
-AUGMENT=1
-EXPERIMENT_ID_BASE="${MODEL_BASE}_alpha_search"
+MODEL_BASE=none
+EPOCHS=20
+FEATURES=vgg16
+BATCH_SIZE=16
+AUGMENT=0
+EXPERIMENT_ID_BASE="alpha_search_light"
 MODE="train_test_validate"
+TRAINING_REGIMEN=regular
 
-for ALPHA in 0.25 0.5 0.9
+for ALPHA in 0.1 0.25 0.5 0.75 0.9
 do
     for SEED in 0 1 2 3 4
     do
-        for SOURCE in A W D
+        for SOURCE in A #D W
         do
-            for TARGET in D A W
+            for TARGET in D #A D W
             do
                 if [ $SOURCE != $TARGET ]
                 then
-                    FE_RUN_DIR="./runs/tune_source/${MODEL_BASE}_aug_ft_best/${SOURCE}${TARGET}"
-                    FROM_WEIGHTS="${FE_RUN_DIR}/checkpoints/cp-best.ckpt"
-
                     EXPERIMENT_ID="${EXPERIMENT_ID_BASE}"
-                    DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
-                    mkdir $DIR_NAME -p
-                    echo $DESCRIPTION > $DIR_NAME/description.txt
-
-                    TIMESTAMP_OLD=$(date '+%Y%m%d%H%M%S')
-
-                    python3 run.py \
-                        --num_unfrozen_base_layers 0 \
-                        --training_regimen  regular \
-                        --timestamp         $TIMESTAMP_OLD \
-                        --learning_rate     1e-5 \
-                        --epochs            15 \
-                        --gpu_id            $GPU_ID \
-                        --optimizer         $OPTIMIZER \
-                        --experiment_id     $EXPERIMENT_ID \
-                        --source            $SOURCE \
-                        --target            $TARGET \
-                        --seed              $SEED \
-                        --method            $METHOD \
-                        --architecture      $ARCHITECTURE \
-                        --model_base        $MODEL_BASE \
-                        --features          $FEATURES \
-                        --batch_size        $BATCH_SIZE \
-                        --augment           $AUGMENT \
-                        --from_weights      $FROM_WEIGHTS \
-                        --loss_alpha        $ALPHA \
-                        --mode              $MODE \
-
-                    FROM_WEIGHTS_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP_OLD}/checkpoints
-                    FROM_WEIGHTS="$FROM_WEIGHTS_DIR/cp-best.ckpt"
-
-                    EXPERIMENT_ID="${EXPERIMENT_ID_BASE}_coarse_grad_ft"
                     DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
                     mkdir $DIR_NAME -p
                     echo $DESCRIPTION > $DIR_NAME/description.txt
@@ -70,11 +33,12 @@ do
                     TIMESTAMP=$(date '+%Y%m%d%H%M%S')
 
                     python3 run.py \
-                        --training_regimen  gradual_unfreeze \
-                        --learning_rate     1e-5 \
-                        --epochs            10 \
-                        --optimizer         $OPTIMIZER \
+                        --training_regimen  $TRAINING_REGIMEN \
+                        --timestamp         $TIMESTAMP \
+                        --learning_rate     $LEARNING_RATE \
+                        --epochs            $EPOCHS \
                         --gpu_id            $GPU_ID \
+                        --optimizer         $OPTIMIZER \
                         --experiment_id     $EXPERIMENT_ID \
                         --source            $SOURCE \
                         --target            $TARGET \
@@ -85,21 +49,17 @@ do
                         --features          $FEATURES \
                         --batch_size        $BATCH_SIZE \
                         --augment           $AUGMENT \
-                        --from_weights      $FROM_WEIGHTS \
                         --loss_alpha        $ALPHA \
                         --mode              $MODE \
-                        --timestamp         $TIMESTAMP \
 
                     # delete checkpoint
-                    FT_RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
+                    # RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
 
-                    if [ ! -f "$FT_RUN_DIR/report.json" ]; then
-                        rm -rf $FT_RUN_DIR
-                    else
-                        rm -rf $FT_RUN_DIR/checkpoints
-                        rm -rf $FE_RUN_DIR/checkpoints
-                    fi
-
+                    # if [ ! -f "$RUN_DIR/report.json" ]; then
+                    #     rm -rf $RUN_DIR
+                    # else
+                    #     rm -rf $RUN_DIR/checkpoints
+                    # fi
                 fi
             done
         done

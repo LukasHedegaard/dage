@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
+DESCRIPTION="Test of the best connections for DAGE-LDA connection."
 
-DESCRIPTION="DAGE variant resembling Marginal Fisher Analysis."
-
-EXPERIMENT_ID=dage_mfa
 METHOD=dage
-
-DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
-
-mkdir $DIR_NAME -p
-echo $DESCRIPTION > $DIR_NAME/description.txt
-
-for K in 1 2
+GPU_ID=0
+OPTIMIZER=adam
+LEARNING_RATE=1e-4
+ARCHITECTURE=two_stream_pair_embeds
+MODEL_BASE=none
+EPOCHS=20
+FEATURES=vgg16
+BATCH_SIZE=16
+AUGMENT=0
+EXPERIMENT_ID_BASE="mfa"
+MODE="train_test"
+TRAINING_REGIMEN=regular
+ALPHA=0.75
+INTRINSIC_PARAM=1
+for PENALTY_PARAM in 16
 do
     for SEED in 0 1 2 3 4
     do
@@ -20,30 +26,52 @@ do
             do
                 if [ $SOURCE != $TARGET ]
                 then
+                    EXPERIMENT_ID="${EXPERIMENT_ID_BASE}"
+                    DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
+                    mkdir $DIR_NAME -p
+                    echo $DESCRIPTION > $DIR_NAME/description.txt
+
+                    TIMESTAMP=$(date '+%Y%m%d%H%M%S')
+
                     python3 run.py \
-                        --gpu_id            0 \
+                        --training_regimen  $TRAINING_REGIMEN \
+                        --timestamp         $TIMESTAMP \
+                        --learning_rate     $LEARNING_RATE \
+                        --epochs            $EPOCHS \
+                        --gpu_id            $GPU_ID \
+                        --optimizer         $OPTIMIZER \
                         --experiment_id     $EXPERIMENT_ID \
                         --source            $SOURCE \
                         --target            $TARGET \
                         --seed              $SEED \
                         --method            $METHOD \
-                        --architecture      two_stream_pair_embeds \
-                        --model_base        none \
-                        --features          vgg16 \
-                        --epochs            20 \
-                        --batch_size        16 \
-                        --augment           0 \
-                        --loss_alpha        0.75 \
-                        --loss_weights_even 0 \
-                        --connection_type                   source_target \
+                        --architecture      $ARCHITECTURE \
+                        --model_base        $MODEL_BASE \
+                        --features          $FEATURES \
+                        --batch_size        $BATCH_SIZE \
+                        --augment           $AUGMENT \
+                        --loss_alpha        $ALPHA \
+                        --mode              $MODE \
+                        --connection_type                   ST_INT_ALL_PEN \
                         --connection_filter_type            knn \
-                        --connection_filter_param           $K \
-                        --penalty_connection_filter_type    knn \
-                        --connection_filter_param           $K \
+                        --connection_filter_param           $INTRINSIC_PARAM \
+                        --penalty_connection_filter_type    ksd \
+                        --penalty_connection_filter_param   $PENALTY_PARAM \
                         --weight_type                       indicator \
 
+
+                    # delete checkpoint
+                    RUN_DIR=./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP}
+
+                    if [ ! -f "$RUN_DIR/report.json" ]; then
+                        rm -rf $RUN_DIR
+                    else
+                        rm -rf $RUN_DIR/checkpoints
+                    fi
                 fi
             done
         done
     done
 done
+
+./scripts/notify.sh "Finished job: ${METHOD}/${EXPERIMENT_ID_BASE} on GPU ${GPU_ID}."
