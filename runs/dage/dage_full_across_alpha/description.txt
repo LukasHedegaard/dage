@@ -1,1 +1,0 @@
-DAGE loss with full connections across domains (none within).
