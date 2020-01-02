@@ -1,15 +1,20 @@
 import argparse
 from datetime import datetime
 import dill # import needed for the checkpoint pickle to work
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 import json
 import numpy as np
+import os
 from pathlib import Path
 from pprint import pprint
+import pushover
 from skopt import gp_minimize, callbacks, load
 from skopt.callbacks import CheckpointSaver, VerboseCallback # if this line below causes problems, install scikit-optimize using: pip install git+https://github.com/scikit-optimize/scikit-optimize/   
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 from subprocess import call
+from multiprocessing import Pool
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Hyperparameter search using Bayesian optimization')
@@ -18,6 +23,9 @@ def parse_args():
     storage.add_argument('--id', type=str, default='', help='Identifyer for the hypersearch')
     storage.add_argument('--from_checkpoint', type=str, default='', help='Path to directory containing checkpoint to continue search from')
     storage.add_argument('--verbose', type=int, default=1, help='Whether to print status outputs')
+    # storage.add_argument('--gpu_ids', type=str, default='', help='IDs of the GPUs to use')
+    # storage.add_argument('--source', type=str, default='W', help='Source dataset')
+    # storage.add_argument('--target', type=str, default='A', help='Target dataset')
 
     search = parser.add_argument_group(description='Search')
     search.add_argument('--n_random_starts', type=int, default=10, help='Number of random starts')
@@ -25,18 +33,17 @@ def parse_args():
     search.add_argument('--acq_func', type=str, default='EI', help='Acquisition function')
     search.add_argument('--noise', type=float, default=None, help='Expected noise level in optimization')
     search.add_argument('--seed', type=int, default=None, help='Seed for the random search')
-    search.add_argument('--obj_fun_path', type=int, default=None, help='Path to a script that executes the objective function')
 
     param = parser.add_argument_group(description='Hyper parameters')
-    param.add_argument('--lr_min', type=float, default=1e-7, help='Learning rate min')
-    param.add_argument('--lr_max', type=float, default=1e-2, help='Learning rate max')
-    param.add_argument('--inv_mom_min', type=float, default=0.001, help='(1-param), i.e. momentum max')
+    param.add_argument('--lr_min', type=float, default=1e-8, help='Learning rate min')
+    param.add_argument('--lr_max', type=float, default=1e-3, help='Learning rate max')
+    param.add_argument('--inv_mom_min', type=float, default=0.01, help='(1-param), i.e. momentum max')
     param.add_argument('--inv_mom_max', type=float, default=0.5, help='(1-param), i.e. momentum min')
-    param.add_argument('--lr_decay_min', type=float, default=1e-6, help='Learning rate decay min (relative to number of epochs)')
-    param.add_argument('--lr_decay_max', type=float, default=0.01, help='Learning rate decay max (relative to number of epochs)')
-    param.add_argument('--dropout_min', type=float, default=0, help='Dropout min')
-    param.add_argument('--dropout_max', type=float, default=0.6, help='Dropout max')
-    param.add_argument('--l2_min', type=float, default=1e-6, help='L2 weight decay min')
+    param.add_argument('--lr_decay_min', type=float, default=1e-7, help='Learning rate decay min (relative to number of epochs)')
+    param.add_argument('--lr_decay_max', type=float, default=1e-2, help='Learning rate decay max (relative to number of epochs)')
+    param.add_argument('--dropout_min', type=float, default=0.1, help='Dropout min')
+    param.add_argument('--dropout_max', type=float, default=0.8, help='Dropout max')
+    param.add_argument('--l2_min', type=float, default=1e-7, help='L2 weight decay min')
     param.add_argument('--l2_max', type=float, default=1e-3, help='L2 weight decay max')
     param.add_argument('--alpha_min', type=float, default=0.1, help='Relative weighting of domain adaptation loss vs cross entropies')
     param.add_argument('--alpha_max', type=float, default=0.99, help='Relative weighting of domain adaptation loss vs cross entropies')
@@ -46,8 +53,8 @@ def parse_args():
     param.add_argument('--loss_param_1_max', type=int, default=3, help='Loss parameter 1 maximum value')
     param.add_argument('--loss_param_2_min', type=int, default=8, help='Loss parameter 2 minimum value')
     param.add_argument('--loss_param_2_max', type=int, default=128, help='Loss parameter 2 maximum value')
-    # param.add_argument('--batch_size', type=float, default=64, help='The batch size')
-    # param.add_argument('--epochs', type=float, default=30, help='The number of epochs to train')
+    param.add_argument('--num_unfrozen_min', type=int, default=0, help='Number of unfrozen base layer minimum')
+    param.add_argument('--num_unfrozen_max', type=int, default=16, help='Number of unfrozen base layer maximum')
 
     return parser.parse_args()
 
@@ -59,55 +66,67 @@ def make_obj_fun_dummy(obj_fun_args):
     return obj_fun
 
 
-from run import main as train_nn
-def make_obj_fun(obj_fun_args, run_id, seed):
+from run import main as nn
+def run(args):
+    if True: #verbose:
+        print("Training objective function with parameters:")
+        pprint(args)
+
+    acc = nn([
+        "--gpu_id",                 "3", #gpu_ids,
+        "--source",                 "W", #source,
+        "--target",                 "A", #target,
+        "--from_weights",           "./runs/tune_source/vgg16_aug_ft_best/WA/checkpoints/cp-best.ckpt",
+        "--num_unfrozen_base_layers", str(args['num_unfrozen']),
+        # "--seed",                   str(np.random.randint(1000)),
+        "--l2",                     str(args['l2']),
+        "--dropout",                str(args['dropout']),
+        "--loss_alpha",             str(args['alpha']),
+        "--loss_weights_even",      str(args['ce_ratio']),
+        "--learning_rate",          str(args['lr']),
+        "--learning_rate_decay",    str(args['lr_decay']),
+        "--momentum",               str(1-args['inv_mom']),
+        "--experiment_id",          "optimizer", #"optimizer{}".format(run_id),
+        "--batch_norm",             "1",
+        "--optimizer",              "adam",
+        "--batch_size",             "16",
+        "--epochs",                 "30", 
+        "--augment",                "0",
+        "--model_base",             "vgg16",
+        "--features",               "images",
+        "--architecture",           "two_stream_pair_embeds",
+        "--method",                 "dsne",
+        # "--connection_type",                    "SOURCE_TARGET",
+        # "--weight_type",                        "INDICATOR",
+        # "--connection_filter_type",             "KNN",
+        # "--penalty_connection_filter_type",     "KSD",
+        "--connection_filter_param",            str(args['loss_param_1']),
+        # "--penalty_connection_filter_param",    str(args['loss_param_2']),
+        "--mode",                   "train_and_test",
+        "--training_regimen",       "batch_repeat",
+        "--batch_repeats",          "1", #str(args['batch_repeats']),
+        "--augment",                "1",
+        # "--timestamp",              "",
+        # "--test_as_val",            "0",
+        # "--embed_size",             "",
+        # "--dense_size",             "",
+        "--ratio",                  "1", #str(args['data_ratio']),
+        # "--shuffle_buffer_size",    "",
+        # "--verbose",                "",
+        "--delete_checkpoint",      "1",
+    ])
+    return -acc
+    
+
+def make_obj_fun(obj_fun_args):
     @use_named_args(obj_fun_args)
     def obj_fun(**args):
-        macro_accuracy = train_nn([
-            "--experiment_id",          "hyperopt{}".format(run_id),
-            "--seed",                   str(seed),
-            "--gpu_id",                 "0",
-            "--source",                 "W",
-            "--target",                 "D",
-            "--l2",                     str(args['l2']),
-            "--dropout",                str(args['dropout']),
-            "--loss_alpha",             str(args['alpha']),
-            "--loss_weights_even",      str(args['ce_ratio']),
-            "--learning_rate",          str(args['lr']),
-            "--momentum",               str(1-args['inv_mom']),
-            "--batch_norm",             "1",
-            "--optimizer",              "adam",
-            "--batch_size",             "64",
-            "--epochs",                 "30", 
-            "--augment",                "0",
-            "--from_weights",           "",
-            "--model_base",             "none",
-            "--features",               "vgg16",
-            "--architecture",           "two_stream_pair_embeds",
-            "--method",                 "dage",
-            "--connection_type",                    "SOURCE_TARGET",
-            "--weight_type",                        "INDICATOR",
-            "--connection_filter_type",             "KNN",
-            "--penalty_connection_filter_type",     "KSD",
-            "--connection_filter_param",            str(args['loss_param_1']),
-            "--penalty_connection_filter_param",    str(args['loss_param_2']),
-            "--mode",                   "test",
-            "--training_regimen",       "batch_repeat",
-            "--batch_repeats",          "2",
-            # "--timestamp", "",
-            # "--test_as_val",            "0",
-            # "--num_unfrozen_base_layers", "",
-            # "--embed_size",           "",
-            # "--dense_size",           "",
-            # "--aux_dense_size",         "",
-            # "--attention_activation",   "",
-            # "--ratio",                  "",
-            # "--shuffle_buffer_size",    "",
-            # "--verbose",                "",
-        ])
-        return -macro_accuracy
+        # Issue: The memory allocation of tensorflow models not bound to the tf.session life-time, but the process lifetime.
+        # Workaround: Call the model creation and evaluation through another process with a scoped life-time
+        # https://github.com/tensorflow/tensorflow/issues/17048
+        with Pool(1) as p:
+            return p.apply(run, (args,))
     return obj_fun
-
 
 def space2dict(arr):
         return {p._name: p for p in arr}
@@ -144,17 +163,25 @@ def main(args):
         Real(args.l2_min,               args.l2_max,            "log-uniform",  name='l2'),
         Real(args.alpha_min,            args.alpha_max,         "uniform",      name='alpha'),
         Real(args.ce_ratio_min,         args.ce_ratio_max,      "uniform",      name='ce_ratio'),
-        Integer(args.loss_param_1_min,  args.loss_param_1_max,                  name='loss_param_1'),
-        Integer(args.loss_param_2_min,  args.loss_param_2_max,                  name='loss_param_2'),
+        Real(1e-5,                      100,                    "log-uniform",  name='loss_param_1'),
+        Integer(args.num_unfrozen_min,  args.num_unfrozen_max,                  name='num_unfrozen'),
+        # Integer(args.loss_param_1_min,  args.loss_param_1_max,                  name='loss_param_1'),
+        # Integer(args.loss_param_2_min,  args.loss_param_2_max,                  name='loss_param_2'),
+        # Integer(1,                      3,                                      name='data_ratio'),
+        # Integer(1,                      3,                                      name='batch_repeats'),
+        # Categorical(['all', 'knn', 'kfn', 'ksd'],                               name='con_filt_type'),
+        # Categorical(['all', 'knn', 'kfn', 'ksd'],                               name='pen_con_filt_type'),
     ]
 
     if verbose:
         print('Search space:')
         pprint(space2dict(search_space))
 
-    obj_fun = make_obj_fun(search_space, run_id=args.id, seed=seed)
+    # prepare objective function
+    obj_fun = make_obj_fun(search_space)
+    # obj_fun = make_obj_fun_dummy(search_space)
 
-    # decide if we should continue a previous search
+    # get previous search
     if args.from_checkpoint:
         cp_path = Path(args.from_checkpoint) / 'checkpoint.pkl'
         if not cp_path.is_file():
@@ -203,9 +230,16 @@ def main(args):
     res = gp_minimize(**search_args)   
 
     # print some statistics
-    print("x^*=")
-    pprint(res.x)
-    print("f(x^*)={}".format(res.fun))
+    if verbose:
+        print("x^*=")
+        pprint(res.x)
+        print("f(x^*)={}".format(res.fun))
+
+    # notify that search is done
+    pushover.Client(
+        user_key=os.getenv('NOTIFICATION_USER'), 
+        api_token=os.getenv('NOTIFICATION_TOKEN')
+    ).send_message("Finished search with ID='{}'".format(args.id), title="Hyper parameter search")
 
 
 if __name__ == '__main__':
