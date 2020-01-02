@@ -1,74 +1,50 @@
-# Domain Adaption
-An implementation of the domain adaption methods
-* Fine tuning
+# Domain Adaption using Graph Embedding (DAGE)
+This repository supplies an implementation of a novel domain adaptation method dubbed Domain Adaptation using Graph Embedding (DAGE).
+
+We additionally provide implementations of the following baseline transfer learning and domain adaptation methods:
+* Fine tuning using gradual unfreeze
 * [CCSA](https://arxiv.org/abs/1906.00684)
 * [d-SNE](http://openaccess.thecvf.com/content_CVPR_2019/papers/Xu_d-SNE_Domain_Adaptation_Using_Stochastic_Neighborhood_Embedding_CVPR_2019_paper.pdf)
 
-## Dependencies:
-```bash
-$ conda env create -f environment.yml
-$ conda activate da
-```
 
 ## Datasets and abbreviation
 | Experiments | Datasets |
 | ----------- |:--------:|
 | Office-31   | AMAZON (A), DSLR (D), and WEBCAM (W)         |
 
-<!-- | Digits      | MNIST(MT), MNISTM(MM), SVHN(SN), and USPS(US)| -->
-<!-- | VisDA       | Synthetic (S) and Real (R)                   | -->
-
-In relation to domain adaption, the terminology of source (S) and target (T) is used.
-
 ## Setup
+
+### Install dependencies
+```bash
+$ pip install -r requirements.txt
+```
 
 ### Download datasets
 ```bash
-$ scripts/download_office_datasets.sh
+$ ./scripts/get_office.sh
 ```
 
-<!-- ### Download pretrained models
-```bash
-$ scripts/download_pretrained_models.sh
-``` -->
 
-## Usage
-### Predifined runs
-Tune a pretrained model on source data, test on target data
+## Running the code
+```run.py``` is the entry-point for running the implemented methods.
+A number of scripts are supplied, with which one can test different methods and configurations.
+
+An example which tunes a model on source data, and tests on target data is
 ```bash
 $ sh scripts/office31_tune_source.sh
 ```
 
-Tune a pretrained model on source and target data, test on target data
-```bash
-$ sh scripts/office31_tune_both.sh
-```
+A short description is included in each script.
 
-Perform domain adaption using the CCSA method
-```bash
-$ sh scripts/office31_ccsa.sh
-```
+## Hyper-parameter optimisation
+A separate python project ```hypersearch.py``` can be used to perform a hyper-parameter search using Bayesian Optimisation.
 
-Perform domain adaption using the d-SNE method
-```bash
-$ sh scripts/office31_dsne.sh
-```
 
-<!-- ### Custom runs
-TODO: desccribe parameters list -->
-
-<!-- ## Deployment -->
-<!-- ## Additional setup notes -->
-<!-- ## Troubleshooting -->
-<!-- ## Built With -->
-<!-- ## Versioning -->
-
+## Results
+A number of notebooks are supplied, in which one can visualise the Office-31 data, see the results of our experiments, and the conducted hyper-parameter search.
 
 ## Authors
 
 * **Lukas Hedegaard** - https://github.com/lukashedegaard
 * **Omar Ali Sheikh-Omar** -  https://github.com/sheikhomar
 
-<!-- ## License -->
-
-<!-- ## Acknowledgments -->

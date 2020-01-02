@@ -1,42 +1,81 @@
 #!/usr/bin/env bash
-# This scripts is used to tune the pretrained model for office 31 experiments
+DESCRIPTION="Tune on source data using gradual unfreeze. 
+We perform the gradual unfreeze mechanism within this script, first training only new layers until convergence.
+We then reduce the learing rate, and perform training again, with some base-layers unfrozen, this time using the weights from the previous iteration as starting point.
+This is repeated, each time unfreezing more layers."
 
-# Repeat 1
-python run.py --method tune_source --source A --target D --model_base vgg16 --epochs 75 --seed 1 --augment  1
-python run.py --method tune_source --source A --target W --model_base vgg16 --epochs 75 --seed 1 --augment  1
-python run.py --method tune_source --source D --target A --model_base vgg16 --epochs 75 --seed 1 --augment  1
-python run.py --method tune_source --source D --target W --model_base vgg16 --epochs 75 --seed 1 --augment  1
-python run.py --method tune_source --source W --target A --model_base vgg16 --epochs 75 --seed 1 --augment  1
-python run.py --method tune_source --source W --target D --model_base vgg16 --epochs 75 --seed 1 --augment  1
+METHOD=tune_source
+GPU_ID=0
+OPTIMIZER=adam
+ARCHITECTURE=single_stream
+MODEL_BASE=vgg16
+FEATURES=images
+BATCH_SIZE=12
+AUGMENT=1
+EXPERIMENT_ID_BASE="${MODEL_BASE}_aug"
 
-# Repeat 2
-python run.py --method tune_source --source A --target D --model_base vgg16 --epochs 75 --seed 2 --augment  1
-python run.py --method tune_source --source A --target W --model_base vgg16 --epochs 75 --seed 2 --augment  1
-python run.py --method tune_source --source D --target A --model_base vgg16 --epochs 75 --seed 2 --augment  1
-python run.py --method tune_source --source D --target W --model_base vgg16 --epochs 75 --seed 2 --augment  1
-python run.py --method tune_source --source W --target A --model_base vgg16 --epochs 75 --seed 2 --augment  1
-python run.py --method tune_source --source W --target D --model_base vgg16 --epochs 75 --seed 2 --augment  1
+for SEED in 1 2 3 4 5
+do
+    for SOURCE in A W D
+    do
+        for TARGET in D A W
+        do
+            if [ $SOURCE != $TARGET ]
+            then
+                EXPERIMENT_ID="${EXPERIMENT_ID_BASE}"
+                DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
+                mkdir $DIR_NAME -p
+                echo $DESCRIPTION > $DIR_NAME/description.txt
 
-# Repeat 3
-python run.py --method tune_source --source A --target D --model_base vgg16 --epochs 75 --seed 3 --augment  1
-python run.py --method tune_source --source A --target W --model_base vgg16 --epochs 75 --seed 3 --augment  1
-python run.py --method tune_source --source D --target A --model_base vgg16 --epochs 75 --seed 3 --augment  1
-python run.py --method tune_source --source D --target W --model_base vgg16 --epochs 75 --seed 3 --augment  1
-python run.py --method tune_source --source W --target A --model_base vgg16 --epochs 75 --seed 3 --augment  1
-python run.py --method tune_source --source W --target D --model_base vgg16 --epochs 75 --seed 3 --augment  1
+                TIMESTAMP_OLD=$(date '+%Y%m%d%H%M%S')
 
-# Repeat 4
-python run.py --method tune_source --source A --target D --model_base vgg16 --epochs 75 --seed 4 --augment  1
-python run.py --method tune_source --source A --target W --model_base vgg16 --epochs 75 --seed 4 --augment  1
-python run.py --method tune_source --source D --target A --model_base vgg16 --epochs 75 --seed 4 --augment  1
-python run.py --method tune_source --source D --target W --model_base vgg16 --epochs 75 --seed 4 --augment  1
-python run.py --method tune_source --source W --target A --model_base vgg16 --epochs 75 --seed 4 --augment  1
-python run.py --method tune_source --source W --target D --model_base vgg16 --epochs 75 --seed 4 --augment  1
+                python3 run.py \
+                    --num_unfrozen_base_layers 0 \
+                    --training_regimen  regular \
+                    --timestamp         $TIMESTAMP_OLD \
+                    --learning_rate     1e-4 \
+                    --epochs            15 \
+                    --gpu_id            $GPU_ID \
+                    --optimizer         $OPTIMIZER \
+                    --experiment_id     $EXPERIMENT_ID \
+                    --source            $SOURCE \
+                    --target            $TARGET \
+                    --seed              $SEED \
+                    --method            $METHOD \
+                    --architecture      $ARCHITECTURE \
+                    --model_base        $MODEL_BASE \
+                    --features          $FEATURES \
+                    --batch_size        $BATCH_SIZE \
+                    --augment           $AUGMENT \
 
-# Repeat 5
-python run.py --method tune_source --source A --target D --model_base vgg16 --epochs 75 --seed 5 --augment  1
-python run.py --method tune_source --source A --target W --model_base vgg16 --epochs 75 --seed 5 --augment  1
-python run.py --method tune_source --source D --target A --model_base vgg16 --epochs 75 --seed 5 --augment  1
-python run.py --method tune_source --source D --target W --model_base vgg16 --epochs 75 --seed 5 --augment  1
-python run.py --method tune_source --source W --target A --model_base vgg16 --epochs 75 --seed 5 --augment  1
-python run.py --method tune_source --source W --target D --model_base vgg16 --epochs 75 --seed 5 --augment  1
+                FROM_WEIGHTS="./runs/$METHOD/$EXPERIMENT_ID/${SOURCE}${TARGET}_${SEED}_${TIMESTAMP_OLD}/checkpoints/cp-best.ckpt"
+
+                EXPERIMENT_ID="${EXPERIMENT_ID_BASE}_coarse_grad_ft"
+                DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
+                mkdir $DIR_NAME -p
+                echo $DESCRIPTION > $DIR_NAME/description.txt
+
+                python3 run.py \
+                    --training_regimen  gradual_unfreeze \
+                    --learning_rate     1e-5 \
+                    --epochs            10 \
+                    --optimizer         $OPTIMIZER \
+                    --gpu_id            $GPU_ID \
+                    --experiment_id     $EXPERIMENT_ID \
+                    --source            $SOURCE \
+                    --target            $TARGET \
+                    --seed              $SEED \
+                    --method            $METHOD \
+                    --architecture      $ARCHITECTURE \
+                    --model_base        $MODEL_BASE \
+                    --features          $FEATURES \
+                    --batch_size        $BATCH_SIZE \
+                    --augment           $AUGMENT \
+                    --from_weights      $FROM_WEIGHTS \
+
+            fi
+        done
+    done
+done
+
+./scripts/notify.sh "Finished job: ${METHOD}/${EXPERIMENT_ID_BASE} on GPU ${GPU_ID}."

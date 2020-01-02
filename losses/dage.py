@@ -9,12 +9,14 @@ class ConnectionType(Enum):
     ALL                 = 'ALL'
     SOURCE_TARGET       = 'SOURCE_TARGET'
     SOURCE_TARGET_PAIR  = 'SOURCE_TARGET_PAIR'
+    ST_INT_ALL_PEN      = 'ST_INT_ALL_PEN'
 
 class FilterType(Enum):
     ALL     = 'ALL'
-    KNN     = 'KNN'
-    KFN     = 'KFN'
-    EPSILON = 'EPSILON'
+    KNN     = 'KNN'     # k-nearest-neighbours
+    KFN     = 'KFN'     # k-farthest-neighbours
+    KSD     = 'KSD'     # k-smallest-distances
+    EPSILON = 'EPSILON' # epsilon margin
 
 class WeightType(Enum):
     INDICATOR   = 'INDICATOR'
@@ -24,6 +26,23 @@ def string2weight_type(s):
     return 
 
 # Util
+def counter():
+    c = 0
+    while True:
+        c += 1
+        yield c
+zeros_count = counter()
+ones_count = counter()
+
+# We need to wrap the zeros and ones function because unique names are mandatory in the graph
+def zeros(shape, dtype=tf.bool):
+    name = 'zeros_{}'.format(next(zeros_count))
+    return tf.zeros(shape, dtype, name)
+
+def ones(shape, dtype=tf.bool):
+    name = 'ones_{}'.format(next(ones_count))
+    return tf.ones(shape, dtype, name)
+
 def str2enum(s, E):
     if isinstance(s, str):
         return E[s.upper()]
@@ -31,7 +50,6 @@ def str2enum(s, E):
         return s
     else:
         raise ValueError('{} should be either be {} or {}'.format(s, str, E))
-        return s
 
 def get_filt_dists(W_Wp, xs, xt):
     # Seing as the distances are also calculated within the fisher ratio of the embedding loss, there might be a performance optimisation to be made here
@@ -45,57 +63,89 @@ def get_filt_dists(W_Wp, xs, xt):
     eTx = tf.broadcast_to(tf.expand_dims(x, axis=0), shape=(N, N, embed_size))
 
     dists = tf.reduce_sum(tf.square(xTe - eTx), axis=2)
-    zeros = tf.zeros([N,N], dtype=DTYPE)
+    z = zeros([N,N], dtype=DTYPE)
 
-    W_dists = tf.where(W, dists, zeros)
-    Wp_dists = tf.where(Wp, dists, zeros)
+    W_dists = tf.where(W, dists, z)
+    Wp_dists = tf.where(Wp, dists, z)
 
     return W_dists, Wp_dists
 
 
-def filt_k_max(x, k):
-    k = tf.constant(k, dtype=tf.int32)
-    N = tf.shape(x)[0]
-    vals, inds = tf.nn.top_k(x, k=k)
+def filt_k_max(dists, k):
+    N = tf.shape(dists)[0]
+    k = tf.minimum(tf.constant(k, dtype=tf.int32), N)
+    vals, inds = tf.nn.top_k(dists, k=k)
     inds = tf.where(tf.greater(vals, tf.zeros_like(vals, dtype=DTYPE)), inds, -tf.ones_like(inds))
     inds = tf.sparse.to_indicator(
         sp_input=tf.sparse.from_dense(inds+1),
         vocab_size=N+1
     )[:,1:]
-    return tf.where(inds, x, tf.zeros_like(x, dtype=DTYPE))
+    filt_dists = tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
+    return tf.maximum(filt_dists, tf.transpose(filt_dists))
 
 
-def filt_k_min(x, k):
-    k = tf.constant(k, dtype=tf.int32)
-    N = tf.shape(x)[0]
-    very_neg = tf.multiply(tf.constant(DTYPE.max, dtype=DTYPE), tf.ones_like(x, dtype=DTYPE))
-    neg_x = -tf.where(tf.equal(x, tf.zeros_like(x, dtype=DTYPE)), very_neg, x)
-    vals, inds = tf.nn.top_k(neg_x, k=k)
+def filt_k_min(dists, k):
+    N = tf.shape(dists)[0]
+    k = tf.minimum(tf.constant(k, dtype=tf.int32), N)
+
+    discarded = tf.multiply(tf.constant(DTYPE.max, dtype=DTYPE), tf.ones_like(dists, dtype=DTYPE))
+    neg_dists = -tf.where(tf.equal(dists, tf.zeros_like(dists, dtype=DTYPE)), discarded, dists)
+    vals, inds = tf.nn.top_k(neg_dists, k=k)
     inds = tf.where(tf.less(vals, tf.zeros_like(vals, dtype=DTYPE)), inds, -tf.ones_like(inds))
     inds = tf.sparse.to_indicator(
         sp_input=tf.sparse.from_dense(inds+1),
         vocab_size=N+1
     )[:,1:]
-    return tf.where(inds, x, tf.zeros_like(x, dtype=DTYPE))
+    filt_dists = tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
+    return tf.maximum(filt_dists, tf.transpose(filt_dists))
+
+
+def filt_k_min_any(dists, k):
+    N = tf.shape(dists)[0]
+    k = tf.minimum(tf.constant(k, dtype=tf.int32), N*N)
+    orig_shape = tf.shape(dists)
+    
+    # select only the upper diagonal
+    upper = tf.matrix_band_part(dists, 0, -1) - tf.diag(tf.diag_part(dists))
+
+    # reshape to vector
+    flattened = tf.reshape(upper, [-1, tf.math.reduce_prod(orig_shape)]) 
+
+    # find k smalles
+    discarded = tf.multiply(tf.constant(DTYPE.max, dtype=DTYPE), tf.ones_like(flattened, dtype=DTYPE))
+    neg_flat = -tf.where(tf.equal(flattened, tf.zeros_like(flattened, dtype=DTYPE)), discarded, flattened)
+
+    # filter k smallest
+    _, inds_flat = tf.nn.top_k(neg_flat, k=k)
+
+    # transform into dense indicator
+    inds_dense = tf.sparse.to_indicator(
+        sp_input=tf.sparse.from_dense(inds_flat),
+        vocab_size=tf.shape(flattened)[-1]
+    )
+
+    inds_upper = tf.cast(tf.reshape(inds_dense, orig_shape), dtype=DTYPE)
+    inds = tf.cast(tf.add(inds_upper, tf.transpose(inds_upper)), dtype=tf.bool)
+
+    return tf.where(inds, dists, tf.zeros_like(dists, dtype=DTYPE))
 
 
 def filt_epsilon(x, eps):
     eps = tf.multiply(tf.constant(eps, dtype=DTYPE), tf.ones_like(x, dtype=DTYPE))
-    zeros = tf.zeros_like(x, dtype=DTYPE)
-    return tf.where(tf.less(x, eps), x, zeros) 
+    return tf.where(tf.less(x, eps), x, tf.zeros_like(x, dtype=DTYPE)) 
 
 
 # Weight types
 def dist2indicator(x):
-    ones = tf.ones_like(x, dtype=DTYPE)
-    zeros = tf.zeros_like(x, dtype=DTYPE)
-    return tf.where(tf.greater(x, zeros), ones, zeros)
+    I = tf.ones_like(x, dtype=DTYPE)
+    O = tf.zeros_like(x, dtype=DTYPE)
+    return tf.where(tf.greater(x, O), I, O)
 
 
 def dist2gaussian(x):
     gaussian = tf.exp(-x)
-    zeros = tf.zeros_like(x, dtype=DTYPE)
-    return tf.where(tf.equal(x, zeros), zeros, gaussian)
+    O = tf.zeros_like(x, dtype=DTYPE)
+    return tf.where(tf.equal(x, O), O, gaussian)
 
 
 # FilterType
@@ -111,8 +161,9 @@ def make_filter(
 ):
     filt_dict = {
         FilterType.ALL      : lambda x, p: x,
-        FilterType.KNN      : filt_k_max,
-        FilterType.KFN      : filt_k_min,
+        FilterType.KNN      : filt_k_min,
+        FilterType.KFN      : filt_k_max,
+        FilterType.KSD      : filt_k_min_any,
         FilterType.EPSILON  : filt_epsilon,
     }
     filt_fn = filt_dict[filter_type]
@@ -140,18 +191,21 @@ def connect_all(ys, yt, batch_size):
     return W, Wp
 
 
-def connect_source_target(ys, yt, batch_size):
-    W_all, Wp_all = connect_all(ys, yt, batch_size)
+def connect_source_target(ys, yt, batch_size, intrinsic=True, penalty=True):
+    W, Wp = connect_all(ys, yt, batch_size)
 
     N = 2*batch_size 
     tile_size = [batch_size, batch_size]
+    O = zeros(tile_size, dtype=tf.bool)
+    I = ones(tile_size, dtype=tf.bool)
+    ind = tf.concat([ tf.concat([O, I], axis=0),
+                      tf.concat([I, O], axis=0) ], axis=1 )
+    O = zeros([N,N], dtype=tf.bool)
 
-    i = tf.concat([ tf.concat([tf.zeros(tile_size, dtype=tf.bool), tf.ones(tile_size, dtype=tf.bool)], axis=0),
-                    tf.concat([tf.ones(tile_size, dtype=tf.bool), tf.zeros(tile_size, dtype=tf.bool)], axis=0) ], axis=1 )
-
-    zeros = tf.zeros([N,N], dtype=tf.bool)
-    W = tf.where(i, W_all, zeros)
-    Wp = tf.where(i, Wp_all, zeros)
+    if intrinsic:
+        W = tf.where(ind, W, O)
+    if penalty:
+        Wp = tf.where(ind, Wp, O)
 
     return W, Wp
 
@@ -159,12 +213,11 @@ def connect_source_target(ys, yt, batch_size):
 def connect_source_target_pair(ys, yt, batch_size):
     eq = tf.linalg.diag(tf.equal(ys, yt))
     neq = tf.linalg.diag(tf.not_equal(ys, yt))
-    zeros = tf.zeros([batch_size, batch_size],dtype=tf.bool)
-    W = tf.concat([tf.concat([zeros, eq], axis=0),
-                   tf.concat([eq, zeros], axis=0)], axis=1)
-    Wp = tf.concat([tf.concat([zeros, neq], axis=0),
-                    tf.concat([neq, zeros], axis=0)], axis=1)
-
+    O = zeros([batch_size, batch_size],dtype=tf.bool)
+    W = tf.concat([tf.concat([O, eq], axis=0),
+                   tf.concat([eq, O], axis=0)], axis=1)
+    Wp = tf.concat([tf.concat([O, neq], axis=0),
+                    tf.concat([neq, O], axis=0)], axis=1)
     return W, Wp
 
 
@@ -186,6 +239,7 @@ def dage_loss(
         ConnectionType.ALL                : connect_all,
         ConnectionType.SOURCE_TARGET      : connect_source_target,
         ConnectionType.SOURCE_TARGET_PAIR : connect_source_target_pair,
+        ConnectionType.ST_INT_ALL_PEN     : partial(connect_source_target, intrinsic=True, penalty=False)
     }[connection_type]
 
     transform = {
@@ -207,10 +261,7 @@ def dage_loss(
                                     xt=xt ))
             return tf.cast(W, dtype=DTYPE), tf.cast(Wp, dtype=DTYPE)
 
-    def loss_fn(y_true, y_pred):
-        ''' Tensorflow implementation of our graph embedding loss
-            Assumes the input layer to be linear, i.e. a dense layer without activation
-        '''        
+    def loss_fn(y_true, y_pred):  
         ys = tf.argmax(tf.cast(y_true[:,0], dtype=tf.int32), axis=1)
         yt = tf.argmax(tf.cast(y_true[:,1], dtype=tf.int32), axis=1)
         xs = y_pred[:,0]
@@ -241,41 +292,35 @@ def dage_loss(
     return loss_fn
 
 
-# Predefined configurations
-dage_full_loss = dage_loss(
-    connection_type=ConnectionType.ALL, 
-    weight_type=WeightType.INDICATOR,
-    filter_type=FilterType.ALL,
-    penalty_filter_type=FilterType.ALL,
-)
-
-dage_full_across_loss = dage_loss(
-    connection_type=ConnectionType.SOURCE_TARGET, 
-    weight_type=WeightType.INDICATOR,
-    filter_type=FilterType.ALL,
-    penalty_filter_type=FilterType.ALL,
-)
-
-dage_pair_across_loss = dage_loss(
-    connection_type=ConnectionType.SOURCE_TARGET_PAIR, 
-    weight_type=WeightType.INDICATOR,
-    filter_type=FilterType.ALL,
-    penalty_filter_type=FilterType.ALL,
-)
-
-dage_ccsa_like_loss = dage_loss(
-    connection_type=ConnectionType.SOURCE_TARGET_PAIR, 
-    weight_type=WeightType.INDICATOR,
-    filter_type=FilterType.ALL,
-    penalty_filter_type=FilterType.EPSILON,
-    penalty_filter_param=1
-)
-
-dage_dsne_like_loss = dage_loss(
-    connection_type=ConnectionType.SOURCE_TARGET, 
-    weight_type=WeightType.INDICATOR,
-    filter_type=FilterType.KFN,
-    penalty_filter_type=FilterType.KNN,
+def dage_attention_loss(
+    connection_type: ConnectionType, 
+    weight_type: WeightType,
+    filter_type: FilterType, 
+    penalty_filter_type: FilterType, 
     filter_param=1,
     penalty_filter_param=1
-)
+): 
+
+    def loss_fn(lbl_src, lbl_tgt, xs, xt, A, Ap):
+        θϕ = tf.transpose(tf.concat([xs,xt], axis=0))
+
+        # construct Weight matrix
+        W = A #tf.multiply(W, A)
+        Wp = Ap #tf.multiply(Wp, Ap)
+
+        # construct Degree matrix
+        D  = tf.linalg.diag(tf.reduce_sum(W,  axis=1)) 
+        Dp = tf.linalg.diag(tf.reduce_sum(Wp, axis=1))
+
+        # construct Graph Laplacian
+        L  = tf.subtract(D, W)
+        Lp = tf.subtract(Dp, Wp)
+        
+        # construct loss
+        θϕLϕθ  = tf.matmul(θϕ, tf.matmul(L,  θϕ, transpose_b=True))
+        θϕLpϕθ = tf.matmul(θϕ, tf.matmul(Lp, θϕ, transpose_b=True))
+
+        loss = tf.linalg.trace(θϕLϕθ) / tf.linalg.trace(θϕLpϕθ)
+
+        return loss
+    return loss_fn

@@ -1,1 +1,0 @@
-DAGE loss applied to the model embeddings with varying batch size. The theory for graph embedding assumes that all data is available when setting up the weight matrix. Here, we test how the method reacts to batches of data.

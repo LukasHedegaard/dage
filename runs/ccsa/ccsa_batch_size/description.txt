@@ -1,1 +1,0 @@
-CCSA loss applied to the model embeddings with varying batch size. We experience that large batch size deteriorates performance on DAGE. This experiment is used to check if it is a general phenomenon for the NN architecture or if it relates to DAGE specifically.
