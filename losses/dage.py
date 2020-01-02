@@ -72,8 +72,8 @@ def get_filt_dists(W_Wp, xs, xt):
 
 
 def filt_k_max(dists, k):
-    k = tf.constant(k, dtype=tf.int32)
     N = tf.shape(dists)[0]
+    k = tf.minimum(tf.constant(k, dtype=tf.int32), N)
     vals, inds = tf.nn.top_k(dists, k=k)
     inds = tf.where(tf.greater(vals, tf.zeros_like(vals, dtype=DTYPE)), inds, -tf.ones_like(inds))
     inds = tf.sparse.to_indicator(
@@ -85,8 +85,9 @@ def filt_k_max(dists, k):
 
 
 def filt_k_min(dists, k):
-    k = tf.constant(k, dtype=tf.int32)
     N = tf.shape(dists)[0]
+    k = tf.minimum(tf.constant(k, dtype=tf.int32), N)
+
     discarded = tf.multiply(tf.constant(DTYPE.max, dtype=DTYPE), tf.ones_like(dists, dtype=DTYPE))
     neg_dists = -tf.where(tf.equal(dists, tf.zeros_like(dists, dtype=DTYPE)), discarded, dists)
     vals, inds = tf.nn.top_k(neg_dists, k=k)
@@ -100,7 +101,8 @@ def filt_k_min(dists, k):
 
 
 def filt_k_min_any(dists, k):
-    k = tf.constant(k, dtype=tf.int32)
+    N = tf.shape(dists)[0]
+    k = tf.minimum(tf.constant(k, dtype=tf.int32), N*N)
     orig_shape = tf.shape(dists)
     
     # select only the upper diagonal
