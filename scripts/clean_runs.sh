@@ -1,11 +1,11 @@
 # clean all
-for d in ./runs/*/*
+for D in ./runs/*/*
 do
-    if [[ $d != *_best ]]
+    if [[ $D != *_best ]]
     then
-        echo $d/*/checkpoints
-        rm -rf $d/*/checkpoints
-        # rm -rf $d/*/logs
+        echo $D/*/checkpoints
+        rm -rf $D/*/checkpoints
+        # rm -rf $D/*/logs
     fi
 done
 
