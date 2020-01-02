@@ -55,7 +55,7 @@ def run(args):
     ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=seed, features=args.features, test_as_val=args.test_as_val)
 
     test_ds = ds['target']['test']
-    # eval_ds = ds['target']['val']
+    eval_ds = ds['target']['val']
 
     if args.test_as_val:
         val_ds = ds['target']['test']
@@ -78,14 +78,13 @@ def run(args):
     }[args.method]()
 
     test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), test_ds['size'])
-    # eval_ds  = (dsg.prep_ds(dataset=eval_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), eval_ds['size'])
+    eval_ds  = (dsg.prep_ds(dataset=eval_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), eval_ds['size'])
     val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), val_ds['size'])
     train_ds = (dsg.prep_ds_train(dataset=train_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), train_ds['size'])
 
     # prepare optimizer
     optimizer = {
         'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=args.momentum, nesterov=True, clipvalue=10, decay=args.learning_rate_decay),
-        # 'sgd_mom'   : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=True, clipvalue=10, decay=args.learning_rate_decay),
         'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=args.momentum, beta_2=0.999, amsgrad=False, clipvalue=10, decay=args.learning_rate_decay),
         'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate, clipvalue=10, decay=args.learning_rate_decay),
     }[args.optimizer]()
@@ -134,9 +133,7 @@ def run(args):
     train = {
         'regular':          partial(models.common.train, checkpoints_path=checkpoints_path, val_freq=val_freq),
         'flipping':         partial(models.common.train, checkpoints_path=checkpoints_path, val_freq=val_freq, flipping=True),
-        # 'flipping':         partial(models.common.train_flipping, checkpoints_path=checkpoints_path),
         'batch_repeat':     partial(models.common.train, checkpoints_path=checkpoints_path, batch_repeats=args.batch_repeats),
-        # 'repeat_batch':     partial(models.common.train_repeat_batch, checkpoints_path=checkpoints_path, batch_repeats=args.batch_repeats),
         'gradual_unfreeze': partial(models.common.train_gradual_unfreeze, model_base_name=args.model_base, checkpoints_path=checkpoints_path, architecture=args.architecture),
     }[args.training_regimen]
 
@@ -178,9 +175,9 @@ def run(args):
 
     result = 0
 
-    # if 'validate' in args.mode:
-    #     x, s = eval_ds
-    #     res = evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_val_path, verbose=args.verbose, target_names=CLASS_NAMES )
+    if 'validate' in args.mode:
+        x, s = eval_ds
+        result = evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_val_path, verbose=args.verbose, target_names=CLASS_NAMES )
     
     if 'test' in args.mode:
         x, s = test_ds
