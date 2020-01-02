@@ -54,7 +54,7 @@ def all(checkpoints_dir, tensorboard_dir, monitor='loss', verbose=True):
     return [
         checkpoint(checkpoints_dir, monitor, verbose), 
         # reduce_lr(monitor, verbose), 
-        # early_stop(monitor, verbose), 
+        early_stop(monitor, verbose), 
         tensorboard(tensorboard_dir),
         TerminateOnNegMetric(),
     ]
