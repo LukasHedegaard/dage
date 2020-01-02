@@ -15,14 +15,17 @@ from functools import partial
 from timeit import default_timer as timer
 import losses as losses
 from shutil import rmtree
+import numpy as np
 
 def run(args):
     if args.gpu_id:
         setup_gpu(args.gpu_id, args.verbose)
 
+    seed = args.seed or np.random.randint(1000)
+
     # documentation setup
     timestamp = args.timestamp or datetime.now().strftime("%Y%m%d%H%M%S")
-    outputs_dir = Path(__file__).parent / 'runs' / args.method / args.experiment_id / '{}{}_{}_{}'.format( args.source, args.target, args.seed, timestamp)
+    outputs_dir = Path(__file__).parent / 'runs' / args.method / args.experiment_id / '{}{}_{}_{}'.format( args.source, args.target, seed, timestamp)
     checkpoints_dir = outputs_dir / 'checkpoints'
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
     checkpoints_path= checkpoints_dir / 'cp-best.ckpt'
@@ -49,7 +52,7 @@ def run(args):
     }[args.model_base] or None
 
 
-    ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=args.seed, features=args.features, test_as_val=args.test_as_val)
+    ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=seed, features=args.features, test_as_val=args.test_as_val)
 
     test_ds = ds['target']['test']
     # eval_ds = ds['target']['val']
@@ -81,10 +84,10 @@ def run(args):
 
     # prepare optimizer
     optimizer = {
-        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=args.momentum, nesterov=True, clipvalue=10),
-        # 'sgd_mom'   : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=True, clipvalue=10),
-        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=args.momentum, beta_2=0.999, amsgrad=False, clipvalue=10),
-        'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate, clipvalue=10),
+        'sgd'       : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=args.momentum, nesterov=True, clipvalue=10, decay=args.learning_rate_decay),
+        # 'sgd_mom'   : lambda: keras.optimizers.SGD (learning_rate=args.learning_rate, momentum=0.9, nesterov=True, clipvalue=10, decay=args.learning_rate_decay),
+        'adam'      : lambda: keras.optimizers.Adam(learning_rate=args.learning_rate, beta_1=args.momentum, beta_2=0.999, amsgrad=False, clipvalue=10, decay=args.learning_rate_decay),
+        'rmsprop'   : lambda: keras.optimizers.RMSprop(learning_rate=args.learning_rate, clipvalue=10, decay=args.learning_rate_decay),
     }[args.optimizer]()
 
     # prepare model
@@ -96,8 +99,8 @@ def run(args):
 
     aux_loss = {
         **{ k  : lambda: losses.dummy_loss for k in ['dummy','tune_source', 'tune_target', 'multitask']},
-        'ccsa' : lambda : losses.contrastive_loss,
-        'dsne' : lambda : losses.dnse_loss(margin=1),
+        'ccsa' : lambda : losses.contrastive_loss( margin=args.connection_filter_param) ,
+        'dsne' : lambda : losses.dnse_loss( margin=args.connection_filter_param ),
         'dage' : lambda : losses.dage_loss( connection_type=args.connection_type,
                                             weight_type=args.weight_type,
                                             filter_type=args.connection_filter_type,
@@ -148,9 +151,9 @@ def run(args):
         f.write(model.to_json())
 
     monitor = {
-        **{k: 'val_loss' for k in ['tune_source', 'tune_target']},
-        **{k: 'val_preds_loss' for k in ['ccsa', 'dsne', 'dage', 'dage_a', 'multitask']},
-    }[args.method]
+        **{k: 'val_' for k in ['tune_source', 'tune_target']},
+        **{k: 'val_preds_' for k in ['ccsa', 'dsne', 'dage', 'dage_a', 'multitask']},
+    }[args.method] + args.monitor
 
     fit_callbacks = callbacks(checkpoints_path, tensorboard_dir, monitor=monitor, verbose=args.verbose)
 

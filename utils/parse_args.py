@@ -9,7 +9,7 @@ def parse_args(raw_args=None):
 
      os_parser = parser.add_argument_group(description='OS')
      os_parser.add_argument('--gpu_id', type=str, default='2', help='Which GPU to use. Default: 2')
-     os_parser.add_argument('--delete_checkpoint', type=str, default='2', help='Delete checkpoint after model training. Default: 0')
+     os_parser.add_argument('--delete_checkpoint', type=int, default=0, help='Delete checkpoint after model training. Default: 0')
      
      # model
      model_parser = parser.add_argument_group(description='Model')
@@ -68,8 +68,8 @@ def parse_args(raw_args=None):
                                    'KNN: Edges for the k nearest neighbors are used;'
                                    'KFN: Edges for the k furthest neighbors are used;'
                                    'EPSILON: Edges where distances are within a distance threshold epsilon are used;' )
-     loss_parser.add_argument('--connection_filter_param', type=int, default=1, help='Parameter for the connection_filter_type. Default: 1')
-     loss_parser.add_argument('--penalty_connection_filter_param', type=int, default=1, help='Parameter for the penalty_connection_filter_type. Default: 1')
+     loss_parser.add_argument('--connection_filter_param', type=float, default=1, help='Parameter for the connection_filter_type. If loss only takes a single parameter (margin for CCSA and d-SNE), it is specified here. Default: 1')
+     loss_parser.add_argument('--penalty_connection_filter_param', type=float, default=1, help='Parameter for the penalty_connection_filter_type. Default: 1')
      loss_parser.add_argument('--attention_activation', type=str, default='softmax', help='Activation function for attention. Default: softmax')
 
      # train
@@ -82,7 +82,7 @@ def parse_args(raw_args=None):
      train_parser.add_argument('--target', type=str, default='D', help='Target domain')
      train_parser.add_argument('--batch_size', '-b', type=int, default=16, help='Batch size. Default: 16')
      train_parser.add_argument('--epochs', '-e', type=int, default=10, help='Number of epochs. Default: 10')
-     train_parser.add_argument('--seed', type=int, default=0, help='Random seed')
+     train_parser.add_argument('--seed', type=int, default=None, help='Random seed. If no argument is given, a random seed is used.')
      train_parser.add_argument('--augment', type=int, default=0, help='Activate augmentation. Only works with features="images". Default: 0')
      train_parser.add_argument('--features', type=str, default='images', 
                               help='The input features to use. Default: images. Options: '
@@ -109,6 +109,8 @@ def parse_args(raw_args=None):
      optim_parser = parser.add_argument_group(description='Optimization')
      optim_parser.add_argument('--optimizer', type=str, default='adam', help='Optimizer')
      optim_parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
+     optim_parser.add_argument('--learning_rate_decay', type=float, default=0.0, help='Learning rate decay')
      optim_parser.add_argument('--momentum', type=float, default=0.9, help='Momentum')
+     optim_parser.add_argument('--monitor', type=str, default='loss', help='Quantity to monitor during validation: "loss" of "acc". Default: "loss"')
      
      return parser.parse_args(raw_args)
