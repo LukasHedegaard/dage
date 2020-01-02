@@ -12,7 +12,7 @@ AUGMENT=1
 mkdir $DIR_NAME -p
 echo $DESCRIPTION > $DIR_NAME/description.txt
 
-for SEED in 0 1 2 3 4
+for SEED in 1 2 3 4 5
 do
     python run.py \
         --source            A \

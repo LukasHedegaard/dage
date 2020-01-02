@@ -18,7 +18,7 @@ LOSS_WEIGHTING=0.5
 for BATCH_REPEATS in 1 2 3 4 5 10 
 do
     EXPERIMENT_ID_BASE="batch_repeat_${BATCH_REPEATS}"
-    for SEED in 5 6 7 8 9 #0 1 2 3 4
+    for SEED in 1 2 3 4 5 6 7 8 9 10
     do
         for SOURCE in W #A D W
         do

@@ -14,7 +14,7 @@ BATCH_SIZE=12
 AUGMENT=1
 EXPERIMENT_ID_BASE="${MODEL_BASE}_aug"
 
-for SEED in 0 1 2 3 4
+for SEED in 1 2 3 4 5
 do
     for SOURCE in A W D
     do

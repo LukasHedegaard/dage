@@ -25,7 +25,7 @@ do
     # if [ $BATCH_SIZE == 1024 ]; then LEARNING_RATE=8e-4; fi
     # if [ $BATCH_SIZE == 4094 ]; then LEARNING_RATE=16e-4; fi
 
-    for SEED in 0 1 2 3 4
+    for SEED in 1 2 3 4 5
     do
         for SOURCE in A #D W
         do

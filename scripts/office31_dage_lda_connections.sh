@@ -16,9 +16,9 @@ MODE="train_test_validate"
 TRAINING_REGIMEN=regular
 ALPHA=0.75
 
-for CONNECTION_TYPE in 'ST_INT_ALL_PEN' #'SOURCE_TARGET' 'ALL' 
+for CONNECTION_TYPE in 'ST_INT_ALL_PEN' 'SOURCE_TARGET' 'ALL' 
 do
-    for SEED in 0 1 2 3 4
+    for SEED in 1 2 3 4 5
     do
         for SOURCE in A D W
         do

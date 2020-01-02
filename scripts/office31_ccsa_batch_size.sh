@@ -15,7 +15,7 @@ TRAINING_REGIMEN=regular
 LEARNING_RATE=0.0016
 ALPHA=0.1
 
-for BATCH_SIZE in 4096 #16 64 256 1024 
+for BATCH_SIZE in 16 64 256 1024 4096
 do
     # learning rate compensation
     # if [ $BATCH_SIZE == 16 ]; then LEARNING_RATE=1e-4; fi
