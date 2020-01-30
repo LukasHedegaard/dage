@@ -88,10 +88,7 @@ class USPS(tfds.core.GeneratorBasedBuilder):
         with tf.io.gfile.GFile(data_path, "rb") as f:
             data = tfds.core.lazy_imports.scipy.io.loadmat(f)['data']
 
-        # Maybe we should shuffle ?
-
         # data dimensions are [256, 1100, 10], i.e. [16x16, n_examples, n_classes]
-
         for i, (example_num, label) in enumerate(
             itertools.product(range(data.shape[1]), range(data.shape[2]))
         ):
