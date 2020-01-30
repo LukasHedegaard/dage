@@ -95,8 +95,6 @@ class MnistM(tfds.core.GeneratorBasedBuilder):
                 f.readlines()
             ))
 
-        # Maybe we should shuffle ?
-
         for i, (image_name, label) in enumerate(lines):
             image_path = os.path.join(images_dir_path, image_name)
             image = np.array(Image.open(image_path))
