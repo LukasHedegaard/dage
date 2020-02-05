@@ -4,7 +4,7 @@ from utils.dataset_gen import DTYPE
 from functools import reduce
 from layers import Pair, DenseAttention
 from losses import dummy_loss
-from models.common import freeze, get_output_shape, model_dense, model_preds, model_attention
+from models.common import freeze, get_output_shape, dense_block, preds_block, model_attention
 from math import ceil
 
 
@@ -23,6 +23,7 @@ def model(
     attention_activation='softmax',
     l2 = 0.0001,
     batch_norm=True,
+    dropout=0.5,
 ):
     in_src = keras.layers.Input(shape=input_shape, name='input_source')
     in_tgt = keras.layers.Input(shape=input_shape, name='input_target')
@@ -33,8 +34,8 @@ def model(
     model_base = model_base
     freeze(model_base, num_leave_unfrozen=num_unfrozen_base_layers)
 
-    model_mid   = model_dense(input_shape=get_output_shape(model_base), dense_size=dense_size, embed_size=embed_size, l2=l2, batch_norm=batch_norm)
-    model_top   = model_preds(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
+    model_mid = dense_block(input_shape=get_output_shape(model_base), dense_sizes=[dense_size, embed_size], l2=l2, batch_norm=batch_norm, dropout=dropout)
+    model_top   = preds_block(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
 
     # weight sharing is used: the same instance of model_base, and model_mid is used for both streams
     base_out_src = model_base(in_src)

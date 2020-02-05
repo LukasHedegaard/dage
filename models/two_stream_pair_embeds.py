@@ -4,7 +4,7 @@ from utils.dataset_gen import DTYPE
 from functools import reduce
 from layers import Pair
 from losses import dummy_loss
-from models.common import freeze, get_output_shape, model_dense, model_preds
+from models.common import freeze, get_output_shape, dense_block, preds_block
 from math import ceil
 
 
@@ -30,8 +30,8 @@ def model(
     model_base = model_base
     freeze(model_base, num_leave_unfrozen=num_unfrozen_base_layers)
 
-    model_mid = model_dense(input_shape=get_output_shape(model_base), dense_size=dense_size, embed_size=embed_size, l2=l2, batch_norm=batch_norm, dropout=dropout)
-    model_top = model_preds(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
+    model_mid = dense_block(input_shape=get_output_shape(model_base), dense_sizes=[dense_size, embed_size], l2=l2, batch_norm=batch_norm, dropout=dropout)
+    model_top = preds_block(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
 
     # weight sharing is used: the same instance of model_base, and model_mid is used for both streams
     mid1 = model_mid(model_base(in1))

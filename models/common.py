@@ -27,27 +27,74 @@ def freeze(model, num_leave_unfrozen=0):
                 layer.trainable = True
 
 
-def model_dense(input_shape, dense_size, embed_size, l2=0.0001, batch_norm=False, dropout=0.5):
-
+def conv2_block(
+    input_shape=(16,16,1), 
+    l2 = 0.0001,
+    dropout=0.5
+):
     i = keras.layers.Input(shape=input_shape)
-    o = keras.layers.Flatten()(i)
-    if dropout:
-        o = keras.layers.Dropout(dropout)(o)
-    o = keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='dense', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
-    if batch_norm:
-        o = keras.layers.BatchNormalization(momentum=0.9)(o)
-    o = keras.layers.Activation('relu')(o)
-    if dropout:
-        o = keras.layers.Dropout(0.5)(o)
-    o = keras.layers.Dense(embed_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='embed', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
-    if batch_norm:
-        o = keras.layers.BatchNormalization(momentum=0.9)(o)
-    o = keras.layers.Activation('relu')(o)
-    model=keras.models.Model(inputs=[i], outputs=[o], name='dense_layers')
+    o = i
+    for filters in [6, 16]:
+        o = keras.layers.Conv2D(filters, (5,5), kernel_regularizer = keras.regularizers.l2(l=l2))(o)
+        o = keras.layers.Activation('relu')(o)
+        if dropout:
+            o = keras.layers.Dropout(dropout)(o)
+    o = keras.layers.MaxPool2D()(o)
+
+    model=keras.models.Model(inputs=[i], outputs=[o], name='embeds')
     return model
 
 
-def model_preds(input_shape, output_shape, l2=0.0001, dropout=0.5):
+def lenetplus_conv_block(
+    input_shape=(16,16,1), 
+    l2 = 0.0001,
+    dropout=0.5,
+    batch_norm=False,
+    num_filters=[32, 64, 128]
+):
+    i = keras.layers.Input(shape=input_shape)
+    o = i
+
+    for i, filters in enumerate(num_filters):
+        if batch_norm:
+            o = keras.layers.BatchNormalization(momentum=0.9)(o)
+        
+        for _ in range(2):
+            o = keras.layers.Conv2D(filters, (3,3), padding='same', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
+            o = tf.keras.layers.LeakyReLU(alpha=0.2)(o)
+
+        o = keras.layers.MaxPool2D()(o)
+        
+        # NB: the d-SNE impl doesn't use dropout for the first conv block
+        if dropout:
+            o = keras.layers.Dropout(dropout)(o)
+
+    model = keras.models.Model(inputs=[i], outputs=[o], name='embeds')
+    return model
+
+
+def dense_block(input_shape, dense_sizes=[1024, 128], l2=0.0001, batch_norm=False, dropout=0.5):
+    i = keras.layers.Input(shape=input_shape)
+    o = keras.layers.Flatten()(i)
+
+    dense_sizes = filter(bool, dense_sizes)
+
+    for dense_size in dense_sizes:
+        if dropout:
+            o = keras.layers.Dropout(dropout)(o)
+        
+        o = keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name=f'dense_{dense_size}', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
+        
+        if batch_norm:
+            o = keras.layers.BatchNormalization(momentum=0.9)(o)
+
+        o = keras.layers.Activation('relu')(o)
+
+    model = keras.models.Model(inputs=[i], outputs=[o], name='dense_layers')
+    return model
+
+
+def preds_block(input_shape, output_shape, l2=0.0001, dropout=0.5):
     return keras.Sequential([
         keras.layers.Input(shape=input_shape),
         keras.layers.Dropout(dropout),
@@ -56,7 +103,7 @@ def model_preds(input_shape, output_shape, l2=0.0001, dropout=0.5):
     ], name='preds')
 
 
-def model_logits(input_shape, dense_size, l2=0.0001, dropout=0.5):
+def logits_block(input_shape, dense_size, l2=0.0001, dropout=0.5):
     return keras.Sequential([
         keras.layers.Input(shape=input_shape),
         keras.layers.Dropout(dropout),
@@ -196,29 +243,30 @@ def train_flipping(
                     '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], target_loss[i]) for i in range(len(target_loss))])
                 ))
 
-        val_iter = iter(val_datasource)
-        val_loss = []
-        for step in range(validation_steps):
-            ins, outs = next(val_iter)
-            val_loss.append(model.test_on_batch(ins, outs))
+        if validation_steps and val_datasource:
+            val_iter = iter(val_datasource)
+            val_loss = []
+            for step in range(validation_steps):
+                ins, outs = next(val_iter)
+                val_loss.append(model.test_on_batch(ins, outs))
 
-        val_loss_avg = reduce(
-            lambda n, o: [n[i]+o[i] for i in range(len(val_loss))],
-            val_loss, 
-            [0 for _ in val_loss[0]]
-        )
+            val_loss_avg = reduce(
+                lambda n, o: [n[i]+o[i] for i in range(len(val_loss))],
+                val_loss, 
+                [0 for _ in val_loss[0]]
+            )
 
-        if verbose:
-            print('  Validation:  {}'.format(
-                '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], val_loss_avg[i]) for i in range(len(val_loss_avg))])
-            ))
-
-        if val_loss_avg[1] < val_loss_best:
-            val_loss_best = val_loss_avg[1]
             if verbose:
-                print("val_preds_loss improved to {}".format(val_loss_best))
-            if checkpoints_path:
-                model.save(str(checkpoints_path.resolve()))
+                print('  Validation:  {}'.format(
+                    '  '.join(['{} {:0.4f}'.format(model.metrics_names[i], val_loss_avg[i]) for i in range(len(val_loss_avg))])
+                ))
+
+            if val_loss_avg[1] < val_loss_best:
+                val_loss_best = val_loss_avg[1]
+                if verbose:
+                    print("val_preds_loss improved to {}".format(val_loss_best))
+                if checkpoints_path:
+                    model.save(str(checkpoints_path.resolve()))
     
     if checkpoints_path:
         if verbose:
@@ -250,7 +298,7 @@ def train_gradual_unfreeze(
     callbacks, 
     architecture='single_stream',
     checkpoints_path=None,
-    triangular_learning_rate=None,
+    triangular_learning_rate:float=None,
     lr_fact=0.25,
     verbose=1, 
     val_datasource=None, 
@@ -282,8 +330,8 @@ def train_gradual_unfreeze(
             model.summary()
 
         if triangular_learning_rate:
-            cyc_lr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=steps_per_epoch*epochs//2, mode='triangular2')
-            base_lr, max_lr = lr_fact*base_lr, lr_fact*max_lr
+            cyc_lr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=steps_per_epoch*epochs//2, mode='triangular2') # type: ignore
+            base_lr, max_lr = lr_fact*base_lr, lr_fact*max_lr # type: ignore
             callbacks = [cyc_lr, *callbacks]
 
         model.fit( 
