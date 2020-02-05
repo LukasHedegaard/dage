@@ -85,7 +85,7 @@ class USPS(tfds.core.GeneratorBasedBuilder):
         """
 
         # the labels file consists of lines of image-names and label pairs, e.g. "00000001.png 2"
-        with tf.io.gfile.GFile(data_path, "rb") as f:
+        with tf.io.gfile.GFile(data_path, "rb") as f: # type: ignore
             data = tfds.core.lazy_imports.scipy.io.loadmat(f)['data']
 
         # data dimensions are [256, 1100, 10], i.e. [16x16, n_examples, n_classes]
