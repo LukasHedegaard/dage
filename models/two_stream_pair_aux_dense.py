@@ -3,7 +3,7 @@ keras = tf.compat.v2.keras
 from utils.dataset_gen import DTYPE
 from layers import Pair
 from losses import dummy_loss
-from models.common import freeze, get_output_shape, model_dense, model_preds
+from models.common import freeze, get_output_shape, dense_block, preds_block
 from math import ceil
 
 
@@ -21,15 +21,16 @@ def model(
     dense_size=1024,
     aux_dense_size=31,
     l2 = 0.0001,
-    batch_norm=True
+    batch_norm=True,
+    dropout=0.5
 ):
     in1 = keras.layers.Input(shape=input_shape, name='input_source')
     in2 = keras.layers.Input(shape=input_shape, name='input_target')
 
     freeze(model_base, num_leave_unfrozen=num_unfrozen_base_layers)
 
-    model_mid = model_dense(input_shape=get_output_shape(model_base), dense_size=dense_size, embed_size=embed_size, l2=l2, batch_norm=batch_norm)
-    model_top = model_preds(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
+    model_mid = dense_block(input_shape=get_output_shape(model_base), dense_sizes=[dense_size, embed_size], l2=l2, batch_norm=batch_norm, dropout=dropout)
+    model_top = preds_block(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
 
     # weight sharing is used: the same instance of model_base, and model_mid is used for both streams
     mid1 = model_mid(model_base(in1))

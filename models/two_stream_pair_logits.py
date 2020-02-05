@@ -4,7 +4,7 @@ from utils.dataset_gen import DTYPE
 from functools import reduce
 from layers import Pair
 from losses import dummy_loss
-from models.common import freeze, get_output_shape, model_dense, model_preds, model_logits
+from models.common import freeze, get_output_shape, dense_block, logits_block
 from math import ceil
 
 
@@ -21,7 +21,8 @@ def model(
     embed_size=128,
     dense_size=1024,
     l2 = 0.0001,
-    batch_norm=True
+    batch_norm=True,
+    dropout=0.5,
 ):
     in1 = keras.layers.Input(shape=input_shape, name='input_source')
     in2 = keras.layers.Input(shape=input_shape, name='input_target')
@@ -29,8 +30,8 @@ def model(
     model_base = model_base
     freeze(model_base, num_leave_unfrozen=num_unfrozen_base_layers)
 
-    model_mid = model_dense(input_shape=get_output_shape(model_base), dense_size=dense_size, embed_size=embed_size, l2=l2, batch_norm=batch_norm)
-    model_top = model_logits(input_shape=get_output_shape(model_mid), dense_size=output_shape, l2=l2)
+    model_mid = dense_block(input_shape=get_output_shape(model_base), dense_sizes=[dense_size, embed_size], l2=l2, batch_norm=batch_norm, dropout=dropout)
+    model_top = logits_block(input_shape=get_output_shape(model_mid), dense_size=output_shape, l2=l2)
     softmax = keras.layers.Activation('softmax', name='preds')
 
     # weight sharing is used: the same instance of model_base, and model_mid is used for both streams
