@@ -89,7 +89,7 @@ class MnistM(tfds.core.GeneratorBasedBuilder):
         """
 
         # the labels file consists of lines of image-names and label pairs, e.g. "00000001.png 2"
-        with tf.io.gfile.GFile(labels_path, "rb") as f:
+        with tf.io.gfile.GFile(labels_path, "rb") as f: # type: ignore
             lines = list(map(
                 lambda l: str(l,"utf-8").split(),
                 f.readlines()
