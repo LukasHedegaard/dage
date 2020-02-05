@@ -1,18 +1,36 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
 from pathlib import Path
-from typing import List, Union, Optional, Dict, Tuple, Callable
+from typing import List, Union, Optional, Dict, Tuple, Callable, Any, Iterable
 import random
-from functools import lru_cache, partial
+from functools import partial, reduce
 import itertools
 from utils.file_io import load_json
 import tensorflow as tf
 # import tensorflow_addons as tfa
 from math import pi as PI
 from scipy.io import loadmat
+import tensorflow_datasets as tfds
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
 DTYPE = tf.float32
+
+
+OFFICE_DICT = {
+    'A' : 'amazon',
+    'D' : 'dslr',
+    'W' : 'webcam',
+}
+
+DIGIT_DICT = {
+    'M' : 'mnist',
+    'U' : 'usps',
+    'Mm': 'mnist-m',
+    'S' : 'svhn'
+}
+
+OFFICE_DATASET_NAMES = ['A', 'D', 'W', 'amazon', 'dslr', 'webcam']
+DIGIT_DATASET_NAMES = ['M', 'U', 'Mm', 'S', 'mnist', 'usps', 'mnist-m', 'svhn']
 
 def make_image_prep(
     shape=[224,224,3], 
@@ -48,8 +66,6 @@ def dataset_from_paths(
     data_paths: List[str],
     preprocess_input:Callable=None,
     shape=[224,224,3], 
-    seed=1,
-    shuffle=True,
 ):
     CLASS_NAMES = tf.constant(sorted(list(set([p.split('/')[-2] for p in data_paths]))))
     data_type = Path(data_paths[0]).suffix if data_paths else 'none'
@@ -112,7 +128,7 @@ def dataset_from_dir(
 ) -> Dataset :
     dir_path = Path(dir_path)
     data_paths = [str(p) for suffix in ['jpg','mat'] for p in dir_path.glob('*/*'+suffix)]
-    return dataset_from_paths(data_paths, preprocess_input, shape, seed), len(data_paths)
+    return dataset_from_paths(data_paths, preprocess_input, shape), len(data_paths)
 
 
 def balanced_dataset_split_from_dir(
@@ -133,8 +149,8 @@ def balanced_dataset_split_from_dir(
         rest_dataset.extend(tmp[samples_per_class:])
 
     return ( 
-        dataset_from_paths(sampled_dataset, preprocess_input, shape, seed), 
-        dataset_from_paths(rest_dataset, preprocess_input, shape, seed), 
+        dataset_from_paths(sampled_dataset, preprocess_input, shape), 
+        dataset_from_paths(rest_dataset, preprocess_input, shape), 
         len(sampled_dataset),
         len(rest_dataset),
     )
@@ -147,7 +163,7 @@ def balanced_dataset_tvt_split_from_dir(
     preprocess_input:Callable=None,
     shape=[224,224,3], 
     seed=1
-) -> Tuple[Dataset, Dataset, int, int]:
+) -> Tuple[Dataset, Dataset, Dataset, int, int, int]:
     train_dataset, val_dataset, test_dataset = [], [], []
     dir_path = Path(dir_path)
     class_paths = dir_path.glob('*')
@@ -160,13 +176,108 @@ def balanced_dataset_tvt_split_from_dir(
         test_dataset.extend(tmp[samples_per_train_class+samples_per_val_class:])
 
     return ( 
-        dataset_from_paths(train_dataset, preprocess_input, shape, seed), 
-        dataset_from_paths(val_dataset, preprocess_input, shape, seed), 
-        dataset_from_paths(test_dataset, preprocess_input, shape, seed), 
+        dataset_from_paths(train_dataset, preprocess_input, shape), 
+        dataset_from_paths(val_dataset, preprocess_input, shape), 
+        dataset_from_paths(test_dataset, preprocess_input, shape), 
         len(train_dataset),
         len(val_dataset),
         len(test_dataset),
     )
+
+
+def split_classwise(ds: Dataset, labels: List[int]) -> List[Dataset]:
+    return [
+        ds.filter(lambda x: tf.equal(x['label'], l)) # type: ignore
+        for l in labels
+    ]
+
+def split(ds_classwise: Iterable[Dataset], take_num:int) -> List[Tuple[Dataset, Dataset]]:
+    return [
+        # (selected, rest)
+        (d.take(take_num), d.skip(take_num))
+        for d in ds_classwise
+    ]
+
+def multi_split(ds_classwise: Iterable[Dataset], take_num:List[int]):
+    if len(take_num) == 0:
+        return ds_classwise
+    if len(take_num) == 1:
+        return split(ds_classwise, take_num[0])
+    if len(take_num) > 1:
+        split_wise = list(zip(*split(ds_classwise, take_num[0])))
+        return [
+            (a, *bc)
+            for (a, bc) in list(zip( # type:ignore
+                split_wise[0], 
+                multi_split(split_wise[1], take_num[1:]) 
+            ))
+        ]
+    
+def collect_classwise_splits(classwise_split_ds):
+    return [
+        reduce(
+            lambda x, acc: acc.concatenate(x),
+            slds
+        )
+        for slds in list(zip(*classwise_split_ds))
+    ]
+
+def balanced_splits(ds, split_num: List[int], labels: List[Any]):
+    return collect_classwise_splits(
+        multi_split(
+            split_classwise(ds, labels),
+            split_num
+        )
+    )
+
+
+def digits_datasets(
+    source_name: str, 
+    target_name: str, 
+    num_source_samples_per_class: int,
+    num_target_samples_per_class: int,
+    num_val_samples_per_class: int,
+    preprocess_input:Callable=None,
+    shape=[224,224,3], 
+    shuffle_buffer_size=1000,
+    seed=1,
+    test_as_val=False
+) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:   
+
+    class_names = digits_class_names()
+    num_classes = len(class_names)
+
+    s_full, s_info = tfds.load(source_name, split="train", with_info=True)
+    s_full_size = s_info['splits']['train']
+    s_full.shuffle(buffer_size=shuffle_buffer_size)
+    s_train, _ = balanced_splits(s_full, [num_source_samples_per_class], class_names)
+    s_train_size = num_source_samples_per_class*num_classes
+
+    target_data, target_info = tfds.load(target_name, split="train", with_info=True)
+
+    if not test_as_val:
+        t_train, t_val, t_test = \
+            balanced_splits(target_data, [num_target_samples_per_class, num_val_samples_per_class], class_names)
+        t_val_size = num_val_samples_per_class*num_classes 
+    else:
+        t_train, t_test = \
+            balanced_splits( target_data,  [num_target_samples_per_class],  class_names)
+        t_val, t_val_size = None, 0
+
+    t_train_size = num_target_samples_per_class*num_classes 
+    t_test_size = len(list(t_test)) 
+
+    return {
+        'source': {
+            'full':  ( s_full,  s_full_size ),
+            'train': ( s_train, s_train_size),
+        },
+        'target': {
+            'train': ( t_train, t_train_size),
+            'val':   ( t_val,   t_val_size),
+            'test':  ( t_test,  t_test_size),
+        },
+    }
              
 
 def office31_datasets(
@@ -177,25 +288,20 @@ def office31_datasets(
     seed=1,
     features='images',
     test_as_val=False
-) -> Dict[str, Dict[str, Dict[str, Tuple[Dataset, int]]]]:
+) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:   
     ''' Create the datasets needed for evaluating the Office31 dataset
     Returns:
         Dictionary of ['source'|'target'] ['full'|'train'|'test'] ['ds'|'size']
     '''
-    name_mapping = {
-        'A' : 'amazon',
-        'D' : 'dslr',
-        'W' : 'webcam',
-    }
 
-    if source_name in name_mapping.keys():
-        source_name = name_mapping[source_name]
-    elif source_name not in name_mapping.values():
-        raise ValueError('source_name must be one of {}'.format(name_mapping.items()))
-    if target_name in name_mapping.keys():
-        target_name = name_mapping[target_name]
-    elif target_name not in name_mapping.values():
-        raise ValueError('source_name must be one of {}'.format(name_mapping.items()))
+    if source_name in OFFICE_DICT.keys():
+        source_name = OFFICE_DICT[source_name]
+    elif source_name not in OFFICE_DICT.values():
+        raise ValueError('source_name must be one of {}'.format(OFFICE_DICT.items()))
+    if target_name in OFFICE_DICT.keys():
+        target_name = OFFICE_DICT[target_name]
+    elif target_name not in OFFICE_DICT.values():
+        raise ValueError('source_name must be one of {}'.format(OFFICE_DICT.items()))
 
     project_base_path = Path(__file__).parent.parent
     source_data_path = project_base_path / 'datasets' / 'Office31' / source_name / features
@@ -219,13 +325,13 @@ def office31_datasets(
 
     return {
         'source': {
-            'full': { 'ds': s_full, 'size': s_full_size },
-            'train': { 'ds': s_train, 'size': s_train_size},
+            'full':  ( s_full,  s_full_size ),
+            'train': ( s_train, s_train_size),
         },
         'target': {
-            'train': { 'ds': t_train, 'size': t_train_size},
-            'val': { 'ds': t_val, 'size': t_val_size},
-            'test': { 'ds': t_test, 'size': t_test_size},
+            'train': ( t_train, t_train_size),
+            'val':   ( t_val,   t_val_size),
+            'test':  ( t_test,  t_test_size),
         },
     }
 
@@ -233,6 +339,11 @@ def office31_datasets(
 def office31_class_names() -> List[str]:
     data_dir = Path(__file__).parent.parent / 'datasets' / 'Office31' / 'amazon' / 'images'
     return sorted([item.name for item in data_dir.glob('*') if item.is_dir()])
+
+
+def digits_class_names() -> List[int]:
+    return list(range(10))
+
 
 def get_random_tf_seed():
     return tf.random.uniform(
@@ -315,14 +426,11 @@ def da_pair_dataset(
               })
 
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes)#.shuffle(buffer_size=shuffle_buffer_size)
-    return {
-        'ds': mix_ds,
-        'size':size_ds
-    }
+    return (mix_ds, size_ds)
 
 
 def da_pair_repeat_dataset(
-    val_ds: Dict,
+    data_dict: Dict[str, Union[Dataset, int]],
     mdl_ins=['input_source', 'input_target'],
     mdl_outs=['preds', 'preds_1', 'aux_out']
 ) -> Tuple[Dataset, int]:
@@ -332,8 +440,8 @@ def da_pair_repeat_dataset(
     '''
     assert tf.executing_eagerly()
 
-    ds = val_ds['ds']
-    size_ds = val_ds['size']
+    ds: Dataset = data_dict['ds']
+    size_ds: int = data_dict['size']
 
     def gen_pars():
         for (d, l) in ds:
@@ -353,10 +461,7 @@ def da_pair_repeat_dataset(
                 mdl_outs[2]: tf.bool })
 
     pair_ds = Dataset.from_generator(gen_pars, types, shapes)
-    return {
-        'ds': pair_ds,
-        'size':size_ds
-    }
+    return (pair_ds, size_ds)
     
 
 def make_ds_example(xs, xt, ys, yt): 
@@ -437,10 +542,7 @@ def da_pair_alt_dataset(
     types  = make_ds_types(source_ds, target_ds)
 
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes)#.shuffle(buffer_size=shuffle_buffer_size)
-    return {
-        'ds': mix_ds,
-        'size':size_ds
-    }
+    return (mix_ds, size_ds )
 
 
 def da_pair_alt_repeat_dataset(
@@ -465,10 +567,7 @@ def da_pair_alt_repeat_dataset(
     types  = make_ds_types(ds, ds)
 
     pair_ds = Dataset.from_generator(gen_pars, types, shapes)
-    return {
-        'ds'  : pair_ds,
-        'size': size_ds
-    }
+    return ( pair_ds, size_ds )
 
 
 

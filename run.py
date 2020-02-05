@@ -16,6 +16,7 @@ from timeit import default_timer as timer
 import losses as losses
 from shutil import rmtree
 import numpy as np
+Dataset = tf.compat.v2.data.Dataset
 
 def run(args):
     if args.gpu_id:
@@ -40,10 +41,6 @@ def run(args):
 
     features_config = load_json(Path('configs/features.json').absolute())
 
-    INPUT_SHAPE = tuple(features_config[args.features]["shape"])
-    CLASS_NAMES = dsg.office31_class_names()
-    OUTPUT_SHAPE = len(CLASS_NAMES)
-
     # prepare data
     preprocess_input = {
         'vgg16'      : lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
@@ -51,36 +48,62 @@ def run(args):
         'none'       : lambda x: x[features_config[args.features]["mat_key"]]
     }[args.model_base] or None
 
+    if all([ name in dsg.OFFICE_DATASET_NAMES for name in [args.source, args.target]]):
+        # office data
+        INPUT_SHAPE = tuple(features_config[args.features]["shape"])
+        CLASS_NAMES = dsg.office31_class_names()
+        OUTPUT_SHAPE = len(CLASS_NAMES)
+        ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=seed, features=args.features, test_as_val=args.test_as_val)
 
-    ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=seed, features=args.features, test_as_val=args.test_as_val)
+    elif all([ name in dsg.DIGIT_DATASET_NAMES for name in [args.source, args.target]]):
+        INPUT_SHAPE = tuple(features_config[args.features]["shape"])
+        CLASS_NAMES = dsg.digits_class_names()
+        OUTPUT_SHAPE = len(CLASS_NAMES)
+        ds = dsg.digits_datasets( 
+            source_name=args.source, 
+            target_name=args.target, 
+            num_source_samples_per_class=args.num_source_samples_per_class,
+            num_target_samples_per_class=args.num_target_samples_per_class,
+            num_val_samples_per_class=args.num_val_samples_per_class, 
+            preprocess_input=preprocess_input, 
+            shape=INPUT_SHAPE, 
+            seed=seed, 
+            test_as_val=args.test_as_val
+        )
 
-    test_ds = ds['target']['test']
-    eval_ds = ds['target']['val']
+    else:
+        raise Exception("The source and target datasets should come from either Office31 or Digits")
+ 
+    source_all_ds,   source_all_size   = ds['source']['full']
+    source_train_ds, source_train_size = ds['source']['train']
+    target_train_ds, target_train_size = ds['target']['train']
+    target_val_ds,   target_val_size   = ds['target']['val']
+    target_test_ds,  target_test_size  = ds['target']['test']
+    test_size = target_test_size
 
     if args.test_as_val:
-        val_ds = ds['target']['test']
-    else:
-        val_ds = ds['target']['val']
+        target_val_ds = target_test_ds
+        target_val_size = target_test_size
 
-    val_ds= {
-        **{ k: lambda: val_ds                                 for k in ['tune_source', 'tune_target']},
-        **{ k: lambda: dsg.da_pair_repeat_dataset(val_ds)     for k in ['ccsa', 'dsne', 'dage', 'multitask']},
-        **{ k: lambda: dsg.da_pair_alt_repeat_dataset(val_ds) for k in ['dage_a']},
+    val_ds, val_size = {
+        **{ k: lambda: (target_val_ds, target_val_size)                                 for k in ['tune_source', 'tune_target']},
+        **{ k: lambda: dsg.da_pair_repeat_dataset(target_val_ds, target_val_size)     for k in ['ccsa', 'dsne', 'dage', 'multitask']},
+        **{ k: lambda: dsg.da_pair_alt_repeat_dataset(target_val_ds, target_val_size) for k in ['dage_a']},
     }[args.method]()
 
-    train_ds = {
-        'tune_source': lambda: ds['source']['full'],
-        'tune_target': lambda: ds['target']['train'],
-        **{ k: lambda: dsg.da_pair_dataset(source_ds=ds['source']['train']['ds'], target_ds=ds['target']['train']['ds'], ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
+    train_ds, train_size = {
+        'tune_source': lambda: (source_all_ds, source_all_size),
+        'tune_target': lambda: (target_train_ds, target_train_size),
+        **{ k: lambda: dsg.da_pair_dataset(source_ds=source_train_ds, target_ds=target_train_ds, ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
             for k in ['ccsa', 'dsne', 'dage', 'multitask'] },
-        **{ k: lambda: dsg.da_pair_alt_dataset(source_ds=ds['source']['train']['ds'], target_ds=ds['target']['train']['ds'], ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
+        **{ k: lambda: dsg.da_pair_alt_dataset(source_ds=source_train_ds, target_ds=target_train_ds, ratio=args.ratio, shuffle_buffer_size=args.shuffle_buffer_size)
             for k in ['dage_a'] },
     }[args.method]()
 
-    test_ds  = (dsg.prep_ds(dataset=test_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), test_ds['size'])
-    eval_ds  = (dsg.prep_ds(dataset=eval_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), eval_ds['size'])
-    val_ds   = (dsg.prep_ds(dataset=val_ds['ds'] , batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), val_ds['size'])
-    train_ds = (dsg.prep_ds_train(dataset=train_ds['ds'], batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size), train_ds['size'])
+    # prep data
+    test_ds  = dsg.prep_ds(dataset=target_test_ds, batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size)
+    val_ds   = dsg.prep_ds(dataset=val_ds , batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size)
+    train_ds = dsg.prep_ds_train(dataset=train_ds, batch_size=args.batch_size, shuffle_buffer_size=args.shuffle_buffer_size)
 
     # prepare optimizer
     optimizer = {
@@ -93,6 +116,8 @@ def run(args):
     model_base = {
         'vgg16'      : lambda: keras.applications.vgg16.VGG16 (input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
         'resnet101v2': lambda: keras.applications.resnet_v2.ResNet101V2(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
+        'conv2'      : lambda: keras.models.common.conv2_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2),
+        'lenetplus'  : lambda: keras.models.common.lenetplus_conv_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2, batch_norm=args.batch_norm),
         'none'       : lambda i=keras.layers.Input(shape=INPUT_SHAPE): keras.models.Model(inputs=i, outputs=i),
     }[args.model_base]()
 
@@ -165,10 +190,8 @@ def run(args):
 
     # perform training and test
     if 'train' in args.mode:
-        x, s = train_ds
-        v_x, v_s = val_ds
         start_time = timer()
-        train(model=model, datasource=augment(x), datasource_size=s, val_datasource=v_x, val_datasource_size=v_s, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose)
+        train(model=model, datasource=augment(train_ds), datasource_size=train_size, val_datasource=val_ds, val_datasource_size=val_size, epochs=args.epochs, batch_size=args.batch_size, callbacks=fit_callbacks, verbose=args.verbose)
         train_time = timer() - start_time
         if args.verbose:
             print("Completed training in {} seconds".format(train_time))
@@ -176,12 +199,10 @@ def run(args):
     result = 0
 
     if 'validate' in args.mode:
-        x, s = eval_ds
-        result = evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_val_path, verbose=args.verbose, target_names=CLASS_NAMES )
+        result = evaluate( model=model_test, test_dataset=val_ds, test_size=val_size, batch_size=args.batch_size, report_path=report_val_path, verbose=args.verbose, target_names=CLASS_NAMES )
     
     if 'test' in args.mode:
-        x, s = test_ds
-        result = evaluate( model=model_test, test_dataset=x, test_size=s, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
+        result = evaluate( model=model_test, test_dataset=test_ds, test_size=test_size, batch_size=args.batch_size, report_path=report_path, verbose=args.verbose, target_names=CLASS_NAMES )
 
 
     if args.delete_checkpoint:
