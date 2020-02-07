@@ -11,7 +11,7 @@ from pprint import pprint
 import pushover
 from skopt import gp_minimize, callbacks, load
 from skopt.callbacks import CheckpointSaver, VerboseCallback # if this line below causes problems, install scikit-optimize using: pip install git+https://github.com/scikit-optimize/scikit-optimize/   
-from skopt.space import Real, Integer
+from skopt.space import Real, Integer, Categorical
 from skopt.utils import use_named_args
 from subprocess import call
 from multiprocessing import Pool
@@ -48,9 +48,9 @@ def run(args):
         pprint(args)
 
     acc = nn([
-        "--gpu_id",                 "0", #gpu_ids,
-        "--source",                 "mnist", #source,
-        "--target",                 "usps", #target,
+        "--gpu_id",                 "1", #gpu_ids,
+        "--source",                 "A", #source,
+        "--target",                 "W", #target,
         "--num_source_samples_per_class", "200",
         "--num_target_samples_per_class", "3",
         "--num_val_samples_per_class", "10",
@@ -69,7 +69,6 @@ def run(args):
         "--optimizer",              "adam",
         "--batch_size",             str(args['bs']),
         "--epochs",                 "50", 
-        "--augment",                str(args['augment']),
         "--architecture",           "two_stream_pair_embeds",
         "--model_base",             "conv2",
         "--dense_size",             "120",
@@ -85,7 +84,8 @@ def run(args):
         "--mode",                   "train_and_test",
         "--training_regimen",       "batch_repeat",
         "--batch_repeats",          "2", #str(args['batch_repeats']),
-        "--augment",                "0",
+        "--augment",                str(args['augment']),
+        "--resize_mode",            str(args['resize_mode']),
         # "--timestamp",              "",
         # "--test_as_val",            "0",
         "--ratio",                  "3", #str(args['data_ratio']),
@@ -144,6 +144,7 @@ def main(args):
         Integer(16, 256,                   name='bs'),
         Integer(0,  1,                     name='bn'),
         Integer(0,  1,                     name='augment'),
+        Categorical(['min', 'max'],        name='resize_mode'),
         # Real(1e-5, 100, "log-uniform",     name='loss_param_1'),
         # Integer(0,  16,                    name='num_unfrozen'),
         # Integer(1,  3,                     name='loss_param_1'),
