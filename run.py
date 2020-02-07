@@ -57,7 +57,7 @@ def run(args):
         ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=seed, features=args.features, test_as_val=args.test_as_val)
 
     elif all([ name in dsg.DIGIT_DATASET_NAMES for name in [args.source, args.target]]):
-        INPUT_SHAPE = dsg.DIGITS_SHAPE
+        INPUT_SHAPE = dsg.digits_shape(args.source, args.target, mode=args.resize_mode)
         CLASS_NAMES = dsg.digits_class_names()
         OUTPUT_SHAPE = len(CLASS_NAMES)
         ds = dsg.digits_datasets( 
@@ -67,7 +67,9 @@ def run(args):
             num_target_samples_per_class=args.num_target_samples_per_class,
             num_val_samples_per_class=args.num_val_samples_per_class, 
             seed=seed, 
-            test_as_val=args.test_as_val
+            test_as_val=args.test_as_val,
+            input_shape=INPUT_SHAPE,
+            standardize_input=args.standardize_input,
         )
 
     else:
@@ -183,8 +185,8 @@ def run(args):
         if args.features != 'images':
             raise ValueError('augment=1 is only allowed for features="images"')
         augment = {
-            **{k: partial(dsg.augment, batch_size=args.batch_size) for k in ['tune_source', 'tune_target']},
-            **{k: partial(dsg.augment_pair, batch_size=args.batch_size) for k in ['ccsa', 'dsne', 'dage', 'dage_a', 'multitask']},
+            **{k: partial(dsg.augment, batch_size=args.batch_size, input_shape=INPUT_SHAPE) for k in ['tune_source', 'tune_target']},
+            **{k: partial(dsg.augment_pair, batch_size=args.batch_size, input_shape=INPUT_SHAPE) for k in ['ccsa', 'dsne', 'dage', 'dage_a', 'multitask']},
         }[args.method]
 
     # perform training and test
@@ -210,8 +212,7 @@ def run(args):
         except:
             pass
 
-
-    return result
+    return result['accuracy'] # type:ignore
 
 def main(raw_args=None):
     args = parse_args(raw_args)

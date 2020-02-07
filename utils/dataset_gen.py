@@ -15,6 +15,7 @@ import tensorflow_datasets as tfds
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
 DTYPE = tf.float32
+ImageShape = Tuple[int, int, int]
 
 OFFICE_DICT = {
     'A' : 'amazon',
@@ -32,7 +33,6 @@ DIGITS_DICT = {
 OFFICE_DATASET_NAMES = ['A', 'D', 'W', 'amazon', 'dslr', 'webcam']
 DIGIT_DATASET_NAMES = ['M', 'U', 'Mm', 'S', 'mnist', 'usps', 'mnist-m', 'svhn']
 
-DIGITS_SHAPE = (32,32,3)
 
 DIGITS_MEAN = {
     'mnist'  : (33.31842145),
@@ -47,6 +47,30 @@ DIGITS_STD = {
     'mnist-m': (64.24722818, 60.37840705, 65.96992975),
     'svhn'   : (55.95578582, 57.77526543, 58.26906232),
 }
+
+DIGITS_SHAPE: Dict[str, ImageShape] = {
+    'mnist'  : (28, 28, 1),
+    'usps'   : (16, 16, 1),
+    'mnist-m': (32, 32, 3),
+    'svhn'   : (32, 32, 3),
+}
+
+
+def digits_shape(source: str, target: str, mode:str='max') -> ImageShape:
+    if source in DIGITS_DICT.keys():
+        source = DIGITS_DICT[source]
+    if target in DIGITS_DICT.keys():
+        target = DIGITS_DICT[target]
+
+    size = {
+        'min' : min(DIGITS_SHAPE[source][0], DIGITS_SHAPE[target][0]),
+        'max' : max(DIGITS_SHAPE[source][0], DIGITS_SHAPE[target][0]),
+    }[mode]
+
+    num_channels = max(DIGITS_SHAPE[source][2], DIGITS_SHAPE[target][2])
+
+    return (size, size, num_channels)
+
 
 def make_image_prep(
     shape=[224,224,3], 
@@ -251,7 +275,7 @@ def one_hot(x: tf.uint64, depth=10):
     # y = tf.cast(y, tf.bool)
     return y
 
-def preprocess_digits(dataset_name:str):
+def preprocess_digits(dataset_name:str, shape:ImageShape, standardize=True):
     if dataset_name in DIGITS_DICT.keys():
         dataset_name = DIGITS_DICT[dataset_name]
     
@@ -260,10 +284,10 @@ def preprocess_digits(dataset_name:str):
     def fn(x):
         im, lbl = x['image'], x['label']
         im = tf.cast(im, tf.float32)
-        im = (im - mean)/std
-        im = tf.image.resize(im, DIGITS_SHAPE[:-1])
-        # im = tf.cast(im, tf.uint8)
-        im = tf.broadcast_to(im, DIGITS_SHAPE)
+        if standardize:
+            im = (im - mean)/std
+        im = tf.image.resize(im, shape[:-1])
+        im = tf.broadcast_to(im, shape)
         lbl = one_hot(lbl)
         return ( im, lbl )
 
@@ -276,9 +300,11 @@ def digits_datasets(
     num_source_samples_per_class: int,
     num_target_samples_per_class: int,
     num_val_samples_per_class: int,
+    input_shape:ImageShape,
+    standardize_input=True,
     shuffle_buffer_size=1000,
     seed=1,
-    test_as_val=False
+    test_as_val=False,
 ) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:   
 
     class_names = digits_class_names()
@@ -287,8 +313,8 @@ def digits_datasets(
     t_data, t_info = tfds.load(target_name, split="train", with_info=True)
     s_data, s_info = tfds.load(source_name, split="train", with_info=True)
 
-    s_data = s_data.map(preprocess_digits(source_name), AUTOTUNE)
-    t_data = t_data.map(preprocess_digits(target_name), AUTOTUNE)
+    s_data = s_data.map(preprocess_digits(source_name, input_shape, standardize_input), AUTOTUNE)
+    t_data = t_data.map(preprocess_digits(target_name, input_shape, standardize_input), AUTOTUNE)
 
     s_full_size = s_info.splits['train'].num_examples
     s_data.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
@@ -621,12 +647,15 @@ def da_pair_alt_repeat_dataset(
 def flip(x: tf.Tensor) -> tf.Tensor:
         return tf.image.random_flip_left_right(x)
 
-def color(x: tf.Tensor) -> tf.Tensor:
-    x = tf.image.random_hue(x, 0.08)
-    x = tf.image.random_saturation(x, 0.6, 1.6)
-    x = tf.image.random_brightness(x, 0.05)
-    x = tf.image.random_contrast(x, 0.7, 1.3)
-    return x
+def color(num_chan:int):
+    def fn(x: tf.Tensor) -> tf.Tensor:
+        if num_chan == 3:
+            x = tf.image.random_hue(x, 0.08)
+            x = tf.image.random_saturation(x, 0.6, 1.6)
+        x = tf.image.random_brightness(x, 0.05)
+        x = tf.image.random_contrast(x, 0.7, 1.3)
+        return x
+    return fn
 
 def rotate(x: tf.Tensor) -> tf.Tensor:
     max_rot = PI / 45
@@ -647,12 +676,12 @@ def zoom(x: tf.Tensor, batch_size=16, crop_size=(224,224)) -> tf.Tensor:
 def clip(x: tf.Tensor) -> tf.Tensor:
     return tf.clip_by_value(x, 0, 1)
 
-def augment(dataset:Dataset, batch_size=16, crop_size=(224,224)):
+def augment(dataset:Dataset, batch_size=16, input_shape=(224,224,3)):
     for f in [
         flip, 
-        color, 
+        color(input_shape[-1]), 
         rotate, 
-        partial(zoom, batch_size=batch_size, crop_size=crop_size),
+        partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
         # clip
     ]:
         dataset = dataset.map(
@@ -668,15 +697,15 @@ def augment(dataset:Dataset, batch_size=16, crop_size=(224,224)):
 def augment_pair(
     dataset:Dataset, 
     batch_size=16, 
-    crop_size=(224,224),
+    input_shape=(224,224,3),
     mdl_ins=['input_source', 'input_target'],
     mdl_outs=['preds', 'preds_1', 'aux_out']
 ):
     for f in [
         flip, 
-        color, 
+        color(input_shape[-1]), 
         rotate, 
-        partial(zoom, batch_size=batch_size, crop_size=crop_size),
+        partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
         # clip
     ]:
         dataset = dataset.map(

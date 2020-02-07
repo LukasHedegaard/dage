@@ -34,11 +34,13 @@ def conv2_block(
 ):
     i = keras.layers.Input(shape=input_shape)
     o = i
-    for filters in [6, 16]:
-        o = keras.layers.Conv2D(filters, (5,5), kernel_regularizer = keras.regularizers.l2(l=l2))(o)
-        o = keras.layers.Activation('relu')(o)
-        if dropout:
-            o = keras.layers.Dropout(dropout)(o)
+
+    o = keras.layers.Conv2D(6, (5,5), kernel_regularizer = keras.regularizers.l2(l=l2))(o)
+    o = keras.layers.Activation('relu')(o)
+    if dropout:
+        o = keras.layers.Dropout(dropout)(o)
+    o = keras.layers.Conv2D(16, (5,5), kernel_regularizer = keras.regularizers.l2(l=l2))(o)
+    o = keras.layers.Activation('relu')(o)
     o = keras.layers.MaxPool2D()(o)
 
     model=keras.models.Model(inputs=[i], outputs=[o], name='embeds')
