@@ -66,7 +66,7 @@ class MnistM(tfds.core.GeneratorBasedBuilder):
         return [
             tfds.core.SplitGenerator(
                 name=tfds.Split.TRAIN,
-                gen_kwargs={
+                gen_kwargs={ #type: ignore
                     "images_dir_path": os.path.join(extracted_path, "mnist_m_train"),
                     "labels_path": os.path.join(extracted_path, "mnist_m_train_labels.txt"),
                 },
