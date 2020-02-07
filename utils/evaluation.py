@@ -90,5 +90,5 @@ def evaluate(
     with open(report_path, 'w') as f:    
         json.dump(cr, f, indent=4)
 
-    return cr['macro avg']['recall']
+    return cr
         

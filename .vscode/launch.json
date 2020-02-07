@@ -21,11 +21,19 @@
                 "--method", "tune_source",
                 "--architecture", "single_stream",
                 "--source", "mnist",
-                "--target", "mnist-m",
+                "--target", "usps",
+                "--num_source_samples_per_class", "200",
                 "--model_base", "conv2",
                 "--dense_size", "120",
                 "--embed_size", "84",
-                "--epochs", "30",
+                "--epochs", "1",
+                "--batch_size", "64",
+                "--learning_rate", "0.0001",
+                "--dropout", "0.5",
+                "--batch_norm", "0",
+                "--augment", "1",
+                "--resize_mode", "min",
+                "--standardize_input", "0"
             ]
         },
         {
@@ -35,7 +43,7 @@
             "program": "${workspaceFolder}/run.py",
             "console": "integratedTerminal",
             "args" : [
-                "--method", "dage",
+                "--method", "dsne",
                 "--architecture", "two_stream_pair_embeds",
                 "--source", "mnist",
                 "--target", "usps",
@@ -43,7 +51,14 @@
                 "--dense_size", "120",
                 "--embed_size", "84",
                 "--epochs", "30",
-                "--batch_size", "128",
+                "--batch_size", "256",
+                "--learning_rate", "0.01",
+                "--num_source_samples_per_class", "200",
+                "--num_target_samples_per_class", "3",
+                "--num_val_samples_per_class", "10",
+                "--shuffle_buffer_size", "5000",
+                "--dropout", "0.5",
+                "--batch_norm", "0",
             ]
         },
         {
