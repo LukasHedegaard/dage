@@ -6,6 +6,7 @@ import random
 from functools import partial, reduce
 import itertools
 from utils.file_io import load_json
+from utils import usps
 import tensorflow as tf
 # import tensorflow_addons as tfa
 from math import pi as PI
@@ -15,14 +16,13 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
 DTYPE = tf.float32
 
-
 OFFICE_DICT = {
     'A' : 'amazon',
     'D' : 'dslr',
     'W' : 'webcam',
 }
 
-DIGIT_DICT = {
+DIGITS_DICT = {
     'M' : 'mnist',
     'U' : 'usps',
     'Mm': 'mnist-m',
@@ -31,6 +31,22 @@ DIGIT_DICT = {
 
 OFFICE_DATASET_NAMES = ['A', 'D', 'W', 'amazon', 'dslr', 'webcam']
 DIGIT_DATASET_NAMES = ['M', 'U', 'Mm', 'S', 'mnist', 'usps', 'mnist-m', 'svhn']
+
+DIGITS_SHAPE = (32,32,3)
+
+DIGITS_MEAN = {
+    'mnist'  : (33.31842145),
+    'usps'   : (63.33399645),
+    'mnist-m': (116.76592523, 117.83341324, 104.10233177),
+    'svhn'   : (115.3679051 , 115.38643995, 119.58916846),
+}
+
+DIGITS_STD = {
+    'mnist'  : (78.56748998),
+    'usps'   : (93.39424878),
+    'mnist-m': (64.24722818, 60.37840705, 65.96992975),
+    'svhn'   : (55.95578582, 57.77526543, 58.26906232),
+}
 
 def make_image_prep(
     shape=[224,224,3], 
@@ -187,8 +203,8 @@ def balanced_dataset_tvt_split_from_dir(
 
 def split_classwise(ds: Dataset, labels: List[int]) -> List[Dataset]:
     return [
-        ds.filter(lambda x: tf.equal(x['label'], l)) # type: ignore
-        for l in labels
+        ds.filter(lambda i, l: tf.equal(tf.argmax(l, axis=0), lbl)) # type: ignore
+        for lbl in labels
     ]
 
 def split(ds_classwise: Iterable[Dataset], take_num:int) -> List[Tuple[Dataset, Dataset]]:
@@ -230,6 +246,29 @@ def balanced_splits(ds, split_num: List[int], labels: List[Any]):
         )
     )
 
+def one_hot(x: tf.uint64, depth=10):
+    y = tf.one_hot(x, depth=depth)
+    # y = tf.cast(y, tf.bool)
+    return y
+
+def preprocess_digits(dataset_name:str):
+    if dataset_name in DIGITS_DICT.keys():
+        dataset_name = DIGITS_DICT[dataset_name]
+    
+    mean, std = DIGITS_MEAN[dataset_name], DIGITS_STD[dataset_name]
+    
+    def fn(x):
+        im, lbl = x['image'], x['label']
+        im = tf.cast(im, tf.float32)
+        im = (im - mean)/std
+        im = tf.image.resize(im, DIGITS_SHAPE[:-1])
+        # im = tf.cast(im, tf.uint8)
+        im = tf.broadcast_to(im, DIGITS_SHAPE)
+        lbl = one_hot(lbl)
+        return ( im, lbl )
+
+    return fn
+
 
 def digits_datasets(
     source_name: str, 
@@ -237,8 +276,6 @@ def digits_datasets(
     num_source_samples_per_class: int,
     num_target_samples_per_class: int,
     num_val_samples_per_class: int,
-    preprocess_input:Callable=None,
-    shape=[224,224,3], 
     shuffle_buffer_size=1000,
     seed=1,
     test_as_val=False
@@ -247,35 +284,41 @@ def digits_datasets(
     class_names = digits_class_names()
     num_classes = len(class_names)
 
-    s_full, s_info = tfds.load(source_name, split="train", with_info=True)
-    s_full_size = s_info['splits']['train']
-    s_full.shuffle(buffer_size=shuffle_buffer_size)
-    s_train, _ = balanced_splits(s_full, [num_source_samples_per_class], class_names)
+    t_data, t_info = tfds.load(target_name, split="train", with_info=True)
+    s_data, s_info = tfds.load(source_name, split="train", with_info=True)
+
+    s_data = s_data.map(preprocess_digits(source_name), AUTOTUNE)
+    t_data = t_data.map(preprocess_digits(target_name), AUTOTUNE)
+
+    s_full_size = s_info.splits['train'].num_examples
+    s_data.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
+    s_train, _ = balanced_splits(s_data, [num_source_samples_per_class], class_names)
     s_train_size = num_source_samples_per_class*num_classes
 
-    target_data, target_info = tfds.load(target_name, split="train", with_info=True)
 
     if not test_as_val:
         t_train, t_val, t_test = \
-            balanced_splits(target_data, [num_target_samples_per_class, num_val_samples_per_class], class_names)
+            balanced_splits(t_data, [num_target_samples_per_class, num_val_samples_per_class], class_names)
         t_val_size = num_val_samples_per_class*num_classes 
     else:
         t_train, t_test = \
-            balanced_splits( target_data,  [num_target_samples_per_class],  class_names)
+            balanced_splits( t_data,  [num_target_samples_per_class],  class_names)
         t_val, t_val_size = None, 0
 
     t_train_size = num_target_samples_per_class*num_classes 
-    t_test_size = len(list(t_test)) 
+    t_test_size = t_info.splits['train'].num_examples - t_train_size - t_val_size
 
     return {
         'source': {
-            'full':  ( s_full,  s_full_size ),
+            'full':  ( s_data,  s_full_size ),
             'train': ( s_train, s_train_size),
+            'shape': s_info.features['image'].shape 
         },
         'target': {
             'train': ( t_train, t_train_size),
             'val':   ( t_val,   t_val_size),
             'test':  ( t_test,  t_test_size),
+            'shape': t_info.features['image'].shape 
         },
     }
              
@@ -411,18 +454,23 @@ def da_pair_dataset(
                 # yield (xs, xt), (ys, yt, [ys, yt])
                 yield {mdl_ins[0]:xs, mdl_ins[1]:xt}, {mdl_outs[0]:ys, mdl_outs[1]:yt, mdl_outs[2]:[ys, yt]}
 
-    shapes = ({ mdl_ins[0]:  source_ds.output_shapes[0], 
-                mdl_ins[1]:  target_ds.output_shapes[0] }, 
-              { mdl_outs[0]: source_ds.output_shapes[1], 
-                mdl_outs[1]: target_ds.output_shapes[1], 
-                mdl_outs[2]: tf.compat.v2.TensorShape([2,target_ds.output_shapes[1][0]])
+    source_output_shapes = list(source_ds.output_shapes.values()) if hasattr(source_ds.output_shapes, 'values') else source_ds.output_shapes
+    target_output_shapes = list(target_ds.output_shapes.values()) if hasattr(target_ds.output_shapes, 'values') else target_ds.output_shapes
+    source_output_types = list(source_ds.output_types.values()) if hasattr(source_ds.output_types, 'values') else source_ds.output_types
+    target_output_types = list(target_ds.output_types.values()) if hasattr(target_ds.output_types, 'values') else target_ds.output_types
+
+    shapes = ({ mdl_ins[0]:  source_output_shapes[0], 
+                mdl_ins[1]:  target_output_shapes[0] }, 
+              { mdl_outs[0]: source_output_shapes[1], 
+                mdl_outs[1]: target_output_shapes[1], 
+                mdl_outs[2]: tf.compat.v2.TensorShape([2, *target_output_shapes[1].as_list()])
               })
 
-    types  = ({ mdl_ins[0]:  source_ds.output_types[0], 
-                mdl_ins[1]:  target_ds.output_types[0] }, 
-              { mdl_outs[0]: source_ds.output_types[1], 
-                mdl_outs[1]: target_ds.output_types[1], 
-                mdl_outs[2]: target_ds.output_types[1]
+    types  = ({ mdl_ins[0]:  source_output_types[0], 
+                mdl_ins[1]:  target_output_types[0] }, 
+              { mdl_outs[0]: source_output_types[1], 
+                mdl_outs[1]: target_output_types[1], 
+                mdl_outs[2]: target_output_types[1]
               })
 
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes)#.shuffle(buffer_size=shuffle_buffer_size)
@@ -430,7 +478,8 @@ def da_pair_dataset(
 
 
 def da_pair_repeat_dataset(
-    data_dict: Dict[str, Union[Dataset, int]],
+    ds: Dataset,
+    ds_size: int,
     mdl_ins=['input_source', 'input_target'],
     mdl_outs=['preds', 'preds_1', 'aux_out']
 ) -> Tuple[Dataset, int]:
@@ -440,28 +489,28 @@ def da_pair_repeat_dataset(
     '''
     assert tf.executing_eagerly()
 
-    ds: Dataset = data_dict['ds']
-    size_ds: int = data_dict['size']
-
     def gen_pars():
         for (d, l) in ds:
             yield {mdl_ins[0]:d, mdl_ins[1]:d}, {mdl_outs[0]:l, mdl_outs[1]:l, mdl_outs[2]:[l,l]}
 
-    shapes = ({ mdl_ins[0]:  ds.output_shapes[0], 
-                mdl_ins[1]:  ds.output_shapes[0] }, 
-              { mdl_outs[0]: ds.output_shapes[1], 
-                mdl_outs[1]: ds.output_shapes[1], 
-                mdl_outs[2]: tf.compat.v2.TensorShape([2,ds.output_shapes[1][0]]) 
+    output_shapes = list(ds.output_shapes.values()) if hasattr(ds.output_shapes, 'values') else ds.output_shapes
+    output_types = list(ds.output_types.values()) if hasattr(ds.output_types, 'values') else ds.output_types
+
+    shapes = ({ mdl_ins[0]:  output_shapes[0], 
+                mdl_ins[1]:  output_shapes[0] }, 
+              { mdl_outs[0]: output_shapes[1], 
+                mdl_outs[1]: output_shapes[1], 
+                mdl_outs[2]: tf.compat.v2.TensorShape([2, *output_shapes[1].as_list()]) 
               })
 
-    types  = ({ mdl_ins[0]:  ds.output_types[0], 
-                mdl_ins[1]:  ds.output_types[0] }, 
-              { mdl_outs[0]: ds.output_types[1], 
-                mdl_outs[1]: ds.output_types[1], 
+    types  = ({ mdl_ins[0]:  output_types[0], 
+                mdl_ins[1]:  output_types[0] }, 
+              { mdl_outs[0]: output_types[1], 
+                mdl_outs[1]: output_types[1], 
                 mdl_outs[2]: tf.bool })
 
     pair_ds = Dataset.from_generator(gen_pars, types, shapes)
-    return (pair_ds, size_ds)
+    return (pair_ds, ds_size)
     
 
 def make_ds_example(xs, xt, ys, yt): 
@@ -546,7 +595,8 @@ def da_pair_alt_dataset(
 
 
 def da_pair_alt_repeat_dataset(
-    val_ds: Dict,
+    ds: Dataset,
+    ds_size: int,
     mdl_ins=['input_source', 'input_target'],
     mdl_outs=['preds', 'preds_1', 'aux_out']
 ) -> Tuple[Dataset, int]:
@@ -556,9 +606,6 @@ def da_pair_alt_repeat_dataset(
     '''
     assert tf.executing_eagerly()
 
-    ds = val_ds['ds']
-    size_ds = val_ds['size']
-
     def gen_pars():
         for (d, l) in ds:
             yield make_ds_example(d, d, l, l) 
@@ -567,7 +614,7 @@ def da_pair_alt_repeat_dataset(
     types  = make_ds_types(ds, ds)
 
     pair_ds = Dataset.from_generator(gen_pars, types, shapes)
-    return ( pair_ds, size_ds )
+    return ( pair_ds, ds_size )
 
 
 

@@ -36,7 +36,7 @@ def parse_args(raw_args=None):
                                    )
      # loss
      loss_parser = parser.add_argument_group(description='Loss')
-     loss_parser.add_argument('--method', type=str, default='tune_source',
+     loss_parser.add_argument('--method', type=str, default='ccsa',
                               help='Methods: '
                                    'tune_source: Train one source, test on target. Should be used with single_stream architeture;'
                                    'tune_target: Train one target, test on target. Should be used with single_stream architeture;'
@@ -46,7 +46,7 @@ def parse_args(raw_args=None):
                                    )
      loss_parser.add_argument('--loss_alpha', type=float, default=0.25, help='Weighting for distance-based domain adaption losses. Default: 0.25')
      loss_parser.add_argument('--loss_weights_even', type=float, default=0.5, help='ratio of source to target loss weighting. For a value of 0, only the source is weighted.')
-     loss_parser.add_argument('--connection_type', type=str, default="", 
+     loss_parser.add_argument('--connection_type', type=str, default="SOURCE_TARGET", 
                               help='How the edge weights for the intrinsic graph should be connected (Only applies for method=dage):'
                                    'ALL: Inter and intra domain connections are made;'
                                    'SOURCE_TARGET: Intra domain connections are made;'
@@ -56,13 +56,13 @@ def parse_args(raw_args=None):
                               help='How the edge weights are weighted (Only applies for method=dage):'
                                    'INDICATOR: Binary connection;'
                                    'GAUSSIAN: exp(-dist^2) where connected, 0 otherwise;' )
-     loss_parser.add_argument('--connection_filter_type', type=str, default="", 
+     loss_parser.add_argument('--connection_filter_type', type=str, default="ALL", 
                               help='How the weights are filtered (Only applies for method=dage):'
                                    'ALL: All edges are used;'
                                    'KNN: Edges for the k nearest neighbors are used;'
                                    'KFN: Edges for the k furthest neighbors are used;'
                                    'EPSILON: Edges where distances are within a distance threshold epsilon are used;' )
-     loss_parser.add_argument('--penalty_connection_filter_type', type=str, default="", 
+     loss_parser.add_argument('--penalty_connection_filter_type', type=str, default="ALL", 
                               help='How the penalty weights are filtered (Only applies for method=dage):'
                                    'ALL: All edges are used;'
                                    'KNN: Edges for the k nearest neighbors are used;'
