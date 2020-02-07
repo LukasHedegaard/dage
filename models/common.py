@@ -28,7 +28,7 @@ def freeze(model, num_leave_unfrozen=0):
 
 
 def conv2_block(
-    input_shape=(16,16,1), 
+    input_shape, 
     l2 = 0.0001,
     dropout=0.5
 ):
@@ -46,7 +46,7 @@ def conv2_block(
 
 
 def lenetplus_conv_block(
-    input_shape=(16,16,1), 
+    input_shape, 
     l2 = 0.0001,
     dropout=0.5,
     batch_norm=False,
@@ -55,7 +55,7 @@ def lenetplus_conv_block(
     i = keras.layers.Input(shape=input_shape)
     o = i
 
-    for i, filters in enumerate(num_filters):
+    for filters in num_filters:
         if batch_norm:
             o = keras.layers.BatchNormalization(momentum=0.9)(o)
         

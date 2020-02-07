@@ -45,7 +45,8 @@ def run(args):
     preprocess_input = {
         'vgg16'      : lambda x: keras.applications.vgg16.preprocess_input(x, mode='tf'),
         'resnet101v2': lambda x: keras.applications.resnet_v2.preprocess_input(x, mode='tf'), #NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
-        'none'       : lambda x: x[features_config[args.features]["mat_key"]]
+        'none'       : lambda x: x[features_config[args.features]["mat_key"]],
+        **{ k: lambda x: x for k in ['conv2', 'lenetplus']},
     }[args.model_base] or None
 
     if all([ name in dsg.OFFICE_DATASET_NAMES for name in [args.source, args.target]]):
@@ -56,7 +57,7 @@ def run(args):
         ds = dsg.office31_datasets( source_name=args.source, target_name=args.target, preprocess_input=preprocess_input, shape=INPUT_SHAPE, seed=seed, features=args.features, test_as_val=args.test_as_val)
 
     elif all([ name in dsg.DIGIT_DATASET_NAMES for name in [args.source, args.target]]):
-        INPUT_SHAPE = tuple(features_config[args.features]["shape"])
+        INPUT_SHAPE = dsg.DIGITS_SHAPE
         CLASS_NAMES = dsg.digits_class_names()
         OUTPUT_SHAPE = len(CLASS_NAMES)
         ds = dsg.digits_datasets( 
@@ -65,8 +66,6 @@ def run(args):
             num_source_samples_per_class=args.num_source_samples_per_class,
             num_target_samples_per_class=args.num_target_samples_per_class,
             num_val_samples_per_class=args.num_val_samples_per_class, 
-            preprocess_input=preprocess_input, 
-            shape=INPUT_SHAPE, 
             seed=seed, 
             test_as_val=args.test_as_val
         )
@@ -116,8 +115,8 @@ def run(args):
     model_base = {
         'vgg16'      : lambda: keras.applications.vgg16.VGG16 (input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
         'resnet101v2': lambda: keras.applications.resnet_v2.ResNet101V2(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
-        'conv2'      : lambda: keras.models.common.conv2_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2),
-        'lenetplus'  : lambda: keras.models.common.lenetplus_conv_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2, batch_norm=args.batch_norm),
+        'conv2'      : lambda: models.common.conv2_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2),
+        'lenetplus'  : lambda: models.common.lenetplus_conv_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2, batch_norm=args.batch_norm),
         'none'       : lambda i=keras.layers.Input(shape=INPUT_SHAPE): keras.models.Model(inputs=i, outputs=i),
     }[args.model_base]()
 
