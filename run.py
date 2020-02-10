@@ -117,7 +117,7 @@ def run(args):
     model_base = {
         'vgg16'      : lambda: keras.applications.vgg16.VGG16 (input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
         'resnet101v2': lambda: keras.applications.resnet_v2.ResNet101V2(input_shape=INPUT_SHAPE, include_top=False, weights='imagenet'),
-        'conv2'      : lambda: models.common.conv2_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2),
+        'conv2'      : lambda: models.common.conv2_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2, batch_norm=args.batch_norm),
         'lenetplus'  : lambda: models.common.lenetplus_conv_block(input_shape=INPUT_SHAPE, l2=args.l2, dropout=args.dropout/2, batch_norm=args.batch_norm),
         'none'       : lambda i=keras.layers.Input(shape=INPUT_SHAPE): keras.models.Model(inputs=i, outputs=i),
     }[args.model_base]()
@@ -154,6 +154,7 @@ def run(args):
                                   lambda : models.two_stream_pair_embeds_attention_mid_classwise.model(attention_activation=args.attention_activation, model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
     }[args.architecture]()
 
+
     val_freq = 3 if args.test_as_val else 1
 
     train = {
@@ -169,6 +170,15 @@ def run(args):
 
     if args.verbose:
         model.summary()
+        keras.utils.plot_model( #type: ignore
+            model,
+            to_file=(Path(__file__).parent /'model.png').absolute(),
+            show_shapes=True,
+            show_layer_names=True,
+            rankdir='TB',
+            expand_nested=True,
+            dpi=96
+        )
 
     with open(model_path, 'w') as f:
         f.write(model.to_json())
