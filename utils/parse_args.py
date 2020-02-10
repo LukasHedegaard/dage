@@ -88,10 +88,12 @@ def parse_args(raw_args=None):
      train_parser.add_argument('--seed', type=int, default=None, help='Random seed. If no argument is given, a random seed is used.')
      train_parser.add_argument('--augment', type=int, default=0, help='Activate augmentation. Only works with features="images". Default: 0')
      train_parser.add_argument('--standardize_input', type=int, default=0, help='Standardize input features. Default: 0')
-     train_parser.add_argument('--resize_mode', type=str, default='max', 
+     train_parser.add_argument('--resize_mode', type=int, default=0, 
                               help='How to resize images. Options: '
-                                   'max: maximum height & width of the domains. '
-                                   'min: minimum height & width of the domains. '
+                                   '1: match source domain dimensions.'
+                                   '2: match target domain dimensions. '
+                                   '3: maximum height & width of the domains. '
+                                   '4: minimum height & width of the domains. '
                               )
      train_parser.add_argument('--features', type=str, default='images', 
                               help='The input features to use. Default: images. Options: '

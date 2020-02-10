@@ -56,15 +56,17 @@ DIGITS_SHAPE: Dict[str, ImageShape] = {
 }
 
 
-def digits_shape(source: str, target: str, mode:str='max') -> ImageShape:
+def digits_shape(source: str, target: str, mode:int=1) -> ImageShape:
     if source in DIGITS_DICT.keys():
         source = DIGITS_DICT[source]
     if target in DIGITS_DICT.keys():
         target = DIGITS_DICT[target]
 
     size = {
-        'min' : min(DIGITS_SHAPE[source][0], DIGITS_SHAPE[target][0]),
-        'max' : max(DIGITS_SHAPE[source][0], DIGITS_SHAPE[target][0]),
+        1 : DIGITS_SHAPE[source][0],
+        2 : DIGITS_SHAPE[target][0],
+        3 : min(DIGITS_SHAPE[source][0], DIGITS_SHAPE[target][0]),
+        4 : max(DIGITS_SHAPE[source][0], DIGITS_SHAPE[target][0]),
     }[mode]
 
     num_channels = max(DIGITS_SHAPE[source][2], DIGITS_SHAPE[target][2])
@@ -286,6 +288,8 @@ def preprocess_digits(dataset_name:str, shape:ImageShape, standardize=True):
         im = tf.cast(im, tf.float32)
         if standardize:
             im = (im - mean)/std
+        else:
+            im = im / 255
         im = tf.image.resize(im, shape[:-1])
         im = tf.broadcast_to(im, shape)
         lbl = one_hot(lbl)
