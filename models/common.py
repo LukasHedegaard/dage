@@ -1,3 +1,4 @@
+from layers.l2norm import L2NormInstance
 import tensorflow as tf
 keras = tf.compat.v2.keras
 K = keras.backend
@@ -5,6 +6,7 @@ DTYPE = tf.float32
 from math import ceil
 from utils.cyclical_learning_rate import CyclicLR
 from functools import reduce
+from layers import AngularLinear, l2norm_instance, L2NormInstance
 
 def get_output_shape(model):
     output_shape = model.layers[-1].output_shape
@@ -16,6 +18,9 @@ def get_output_shape(model):
 
 
 def freeze(model, num_leave_unfrozen=0):
+    if num_leave_unfrozen == -1:
+        return model
+        
     if num_leave_unfrozen == 0:
         for layer in model.layers:
             layer.trainable = False
@@ -83,14 +88,12 @@ def dense_block(input_shape, dense_sizes=[1024, 128], l2=0.0001, batch_norm=Fals
     i = keras.layers.Input(shape=input_shape)
     o = keras.layers.Flatten()(i)
 
-    dense_sizes = filter(bool, dense_sizes)
+    dense_sizes = list(filter(bool, dense_sizes))
 
     for dense_size in dense_sizes:
         if dropout:
             o = keras.layers.Dropout(dropout)(o)
-        
         o = keras.layers.Dense(dense_size, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name=f'dense_{dense_size}', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
-        
         if batch_norm:
             o = keras.layers.BatchNormalization(momentum=0.9)(o)
 
@@ -100,13 +103,25 @@ def dense_block(input_shape, dense_sizes=[1024, 128], l2=0.0001, batch_norm=Fals
     return model
 
 
-def preds_block(input_shape, output_shape, l2=0.0001, dropout=0.5):
-    return keras.Sequential([
-        keras.layers.Input(shape=input_shape),
-        keras.layers.Dropout(dropout),
-        keras.layers.Dense(output_shape, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits', kernel_regularizer = keras.regularizers.l2(l=l2)),
-        keras.layers.Activation('softmax', name='preds'),
-    ], name='preds')
+def preds_block(input_shape, output_shape, l2=0.0001, dropout=0.5, l2_instance=False, angular_linear=False):
+    i = keras.layers.Input(shape=input_shape)
+    o = i
+
+    # if dropout:
+    #     o = keras.layers.Dropout(dropout)(o)
+
+    if l2_instance:
+        o = L2NormInstance()(o)
+
+    if angular_linear:
+        o = AngularLinear(output_shape, name='logits')(o)
+    else:
+        o = keras.layers.Dense(output_shape, activation=None, kernel_initializer='glorot_uniform', bias_initializer='zeros', name='logits', kernel_regularizer = keras.regularizers.l2(l=l2))(o)
+    
+    o = keras.layers.Activation('softmax', name='preds')(o)
+    model = keras.models.Model(inputs=[i], outputs=[o], name='preds')
+    return model
+
 
 
 def logits_block(input_shape, dense_size, l2=0.0001, dropout=0.5):
