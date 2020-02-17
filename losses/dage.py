@@ -86,7 +86,7 @@ def filt_k_max(dists, k):
 
 def filt_k_min(dists, k):
     N = tf.shape(dists)[0]
-    k = tf.minimum(tf.constant(k, dtype=tf.int32), N)
+    k = tf.minimum(tf.constant(int(k), dtype=tf.int32), N)
 
     discarded = tf.multiply(tf.constant(DTYPE.max, dtype=DTYPE), tf.ones_like(dists, dtype=DTYPE))
     neg_dists = -tf.where(tf.equal(dists, tf.zeros_like(dists, dtype=DTYPE)), discarded, dists)
@@ -102,7 +102,7 @@ def filt_k_min(dists, k):
 
 def filt_k_min_any(dists, k):
     N = tf.shape(dists)[0]
-    k = tf.minimum(tf.constant(k, dtype=tf.int32), N*N)
+    k = tf.minimum(tf.constant(int(k), dtype=tf.int32), N*N)
     orig_shape = tf.shape(dists)
     
     # select only the upper diagonal
@@ -143,9 +143,10 @@ def dist2indicator(x):
 
 
 def dist2gaussian(x):
-    gaussian = tf.exp(-x)
+    gaussian = tf.math.exp(-x)
     O = tf.zeros_like(x, dtype=DTYPE)
-    return tf.where(tf.equal(x, O), O, gaussian)
+    # return tf.where(tf.equal(x, O), O, gaussian)
+    return tf.where(tf.greater(gaussian, O), gaussian, O)
 
 
 # FilterType
