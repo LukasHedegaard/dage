@@ -682,7 +682,7 @@ def clip(x: tf.Tensor) -> tf.Tensor:
 
 def augment(dataset:Dataset, batch_size=16, input_shape=(224,224,3)):
     for f in [
-        flip, 
+        # flip, 
         color(input_shape[-1]), 
         rotate, 
         partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
