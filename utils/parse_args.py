@@ -20,7 +20,7 @@ def parse_args(raw_args=None):
                                    'none: dummy model containing a unity mapping;'
                               )
      model_parser.add_argument('--from_weights', type=str, default=None, help='Path to pretrained model weights')
-     model_parser.add_argument('--num_unfrozen_base_layers', type=int, default=0, help='Number of unfrozen layers in base network. Default: 0')
+     model_parser.add_argument('--num_unfrozen_base_layers', type=int, default=-1, help='Number of unfrozen layers in base network. Default: -1 (all)')
      model_parser.add_argument('--embed_size', type=int, default=128, help='Size of embedding layer. Default: 128')
      model_parser.add_argument('--dense_size', type=int, default=1024, help='Size of first dense layer. Default: 1024')
      model_parser.add_argument('--l2', type=float, default=1e-4, help='L2 normalisation parameter. Default: 1e-4')
@@ -61,12 +61,14 @@ def parse_args(raw_args=None):
                                    'ALL: All edges are used;'
                                    'KNN: Edges for the k nearest neighbors are used;'
                                    'KFN: Edges for the k furthest neighbors are used;'
+                                   'KSD: Edges for the k shortest distances are used;'
                                    'EPSILON: Edges where distances are within a distance threshold epsilon are used;' )
      loss_parser.add_argument('--penalty_connection_filter_type', type=str, default="ALL", 
                               help='How the penalty weights are filtered (Only applies for method=dage):'
                                    'ALL: All edges are used;'
                                    'KNN: Edges for the k nearest neighbors are used;'
                                    'KFN: Edges for the k furthest neighbors are used;'
+                                   'KSD: Edges for the k shortest distances are used;'
                                    'EPSILON: Edges where distances are within a distance threshold epsilon are used;' )
      loss_parser.add_argument('--connection_filter_param', type=float, default=1, help='Parameter for the connection_filter_type. If loss only takes a single parameter (margin for CCSA and d-SNE), it is specified here. Default: 1')
      loss_parser.add_argument('--penalty_connection_filter_param', type=float, default=1, help='Parameter for the penalty_connection_filter_type. Default: 1')
@@ -74,8 +76,9 @@ def parse_args(raw_args=None):
 
      # train
      train_parser = parser.add_argument_group(description='Training')
-     train_parser.add_argument('--training_regimen', type=str, default='regular', help='How train the mode:'
+     train_parser.add_argument('--training_regimen', type=str, default='batch_repeat', help='How train the mode:'
                                    'regular: Train model using a regular model.fit;'
+                                   'batch_repeat: Train model using a regular model.fit but repeating each batch;'
                                    'flipping: Train the model, flipping which domain enters which stream on every batch;'
                                    'gradual_unfreeze: Gradually unfreeze the base_model layers')
      train_parser.add_argument('--source', type=str, default='A', help='Source domain')
