@@ -170,15 +170,15 @@ def run(args):
 
     if args.verbose:
         model.summary()
-        keras.utils.plot_model( #type: ignore
-            model,
-            to_file=(Path(__file__).parent /'model.png').absolute(),
-            show_shapes=True,
-            show_layer_names=True,
-            rankdir='TB',
-            expand_nested=True,
-            dpi=96
-        )
+        # keras.utils.plot_model( #type: ignore
+        #     model,
+        #     to_file=(Path(__file__).parent /'model.png').absolute(),
+        #     show_shapes=True,
+        #     show_layer_names=True,
+        #     rankdir='TB',
+        #     expand_nested=True,
+        #     dpi=96
+        # )
 
     with open(model_path, 'w') as f:
         f.write(model.to_json())
