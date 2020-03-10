@@ -1,18 +1,78 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import numpy as np
 from pathlib import Path
-from typing import List, Union, Optional, Dict, Tuple, Callable
+from typing import List, Union, Optional, Dict, Tuple, Callable, Any, Iterable
 import random
-from functools import lru_cache, partial
+from functools import partial, reduce
 import itertools
 from utils.file_io import load_json
+from utils import usps
 import tensorflow as tf
 # import tensorflow_addons as tfa
 from math import pi as PI
 from scipy.io import loadmat
+import tensorflow_datasets as tfds
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
 DTYPE = tf.float32
+ImageShape = Tuple[int, int, int]
+
+OFFICE_DICT = {
+    'A' : 'amazon',
+    'D' : 'dslr',
+    'W' : 'webcam',
+}
+
+DIGITS_DICT = {
+    'M' : 'mnist',
+    'U' : 'usps',
+    'Mm': 'mnist-m',
+    'S' : 'svhn'
+}
+
+OFFICE_DATASET_NAMES = ['A', 'D', 'W', 'amazon', 'dslr', 'webcam']
+DIGIT_DATASET_NAMES = ['M', 'U', 'Mm', 'S', 'mnist', 'usps', 'mnist-m', 'svhn']
+
+
+DIGITS_MEAN = {
+    'mnist'  : (33.31842145),
+    'usps'   : (63.33399645),
+    'mnist-m': (116.76592523, 117.83341324, 104.10233177),
+    'svhn'   : (115.3679051 , 115.38643995, 119.58916846),
+}
+
+DIGITS_STD = {
+    'mnist'  : (78.56748998),
+    'usps'   : (93.39424878),
+    'mnist-m': (64.24722818, 60.37840705, 65.96992975),
+    'svhn'   : (55.95578582, 57.77526543, 58.26906232),
+}
+
+DIGITS_SHAPE: Dict[str, ImageShape] = {
+    'mnist'  : (28, 28, 1),
+    'usps'   : (16, 16, 1),
+    'mnist-m': (32, 32, 3),
+    'svhn'   : (32, 32, 3),
+}
+
+
+def digits_shape(source: str, target: str, mode:int=1) -> ImageShape:
+    if source in DIGITS_DICT.keys():
+        source = DIGITS_DICT[source]
+    if target in DIGITS_DICT.keys():
+        target = DIGITS_DICT[target]
+
+    size = {
+        1 : DIGITS_SHAPE[source][0],
+        2 : DIGITS_SHAPE[target][0],
+        3 : min(DIGITS_SHAPE[source][0], DIGITS_SHAPE[target][0]),
+        4 : max(DIGITS_SHAPE[source][0], DIGITS_SHAPE[target][0]),
+    }[mode]
+
+    num_channels = max(DIGITS_SHAPE[source][2], DIGITS_SHAPE[target][2])
+
+    return (size, size, num_channels)
+
 
 def make_image_prep(
     shape=[224,224,3], 
@@ -48,8 +108,6 @@ def dataset_from_paths(
     data_paths: List[str],
     preprocess_input:Callable=None,
     shape=[224,224,3], 
-    seed=1,
-    shuffle=True,
 ):
     CLASS_NAMES = tf.constant(sorted(list(set([p.split('/')[-2] for p in data_paths]))))
     data_type = Path(data_paths[0]).suffix if data_paths else 'none'
@@ -112,7 +170,7 @@ def dataset_from_dir(
 ) -> Dataset :
     dir_path = Path(dir_path)
     data_paths = [str(p) for suffix in ['jpg','mat'] for p in dir_path.glob('*/*'+suffix)]
-    return dataset_from_paths(data_paths, preprocess_input, shape, seed), len(data_paths)
+    return dataset_from_paths(data_paths, preprocess_input, shape), len(data_paths)
 
 
 def balanced_dataset_split_from_dir(
@@ -133,8 +191,8 @@ def balanced_dataset_split_from_dir(
         rest_dataset.extend(tmp[samples_per_class:])
 
     return ( 
-        dataset_from_paths(sampled_dataset, preprocess_input, shape, seed), 
-        dataset_from_paths(rest_dataset, preprocess_input, shape, seed), 
+        dataset_from_paths(sampled_dataset, preprocess_input, shape), 
+        dataset_from_paths(rest_dataset, preprocess_input, shape), 
         len(sampled_dataset),
         len(rest_dataset),
     )
@@ -147,7 +205,7 @@ def balanced_dataset_tvt_split_from_dir(
     preprocess_input:Callable=None,
     shape=[224,224,3], 
     seed=1
-) -> Tuple[Dataset, Dataset, int, int]:
+) -> Tuple[Dataset, Dataset, Dataset, int, int, int]:
     train_dataset, val_dataset, test_dataset = [], [], []
     dir_path = Path(dir_path)
     class_paths = dir_path.glob('*')
@@ -160,13 +218,139 @@ def balanced_dataset_tvt_split_from_dir(
         test_dataset.extend(tmp[samples_per_train_class+samples_per_val_class:])
 
     return ( 
-        dataset_from_paths(train_dataset, preprocess_input, shape, seed), 
-        dataset_from_paths(val_dataset, preprocess_input, shape, seed), 
-        dataset_from_paths(test_dataset, preprocess_input, shape, seed), 
+        dataset_from_paths(train_dataset, preprocess_input, shape), 
+        dataset_from_paths(val_dataset, preprocess_input, shape), 
+        dataset_from_paths(test_dataset, preprocess_input, shape), 
         len(train_dataset),
         len(val_dataset),
         len(test_dataset),
     )
+
+
+def split_classwise(ds: Dataset, labels: List[int]) -> List[Dataset]:
+    return [
+        ds.filter(lambda i, l: tf.equal(tf.argmax(l, axis=0), lbl)) # type: ignore
+        for lbl in labels
+    ]
+
+def split(ds_classwise: Iterable[Dataset], take_num:int) -> List[Tuple[Dataset, Dataset]]:
+    return [
+        # (selected, rest)
+        (d.take(take_num), d.skip(take_num))
+        for d in ds_classwise
+    ]
+
+def multi_split(ds_classwise: Iterable[Dataset], take_num:List[int]):
+    if len(take_num) == 0:
+        return ds_classwise
+    if len(take_num) == 1:
+        return split(ds_classwise, take_num[0])
+    if len(take_num) > 1:
+        split_wise = list(zip(*split(ds_classwise, take_num[0])))
+        return [
+            (a, *bc)
+            for (a, bc) in list(zip( # type:ignore
+                split_wise[0], 
+                multi_split(split_wise[1], take_num[1:]) 
+            ))
+        ]
+    
+def collect_classwise_splits(classwise_split_ds):
+    return [
+        reduce(
+            lambda x, acc: acc.concatenate(x),
+            slds
+        )
+        for slds in list(zip(*classwise_split_ds))
+    ]
+
+def balanced_splits(ds, split_num: List[int], labels: List[Any]):
+    return collect_classwise_splits(
+        multi_split(
+            split_classwise(ds, labels),
+            split_num
+        )
+    )
+
+def one_hot(x: tf.uint64, depth=10):
+    y = tf.one_hot(x, depth=depth)
+    # y = tf.cast(y, tf.bool)
+    return y
+
+def preprocess_digits(dataset_name:str, shape:ImageShape, standardize=True):
+    if dataset_name in DIGITS_DICT.keys():
+        dataset_name = DIGITS_DICT[dataset_name]
+    
+    mean, std = DIGITS_MEAN[dataset_name], DIGITS_STD[dataset_name]
+    
+    def fn(x):
+        im, lbl = x['image'], x['label']
+        im = tf.cast(im, tf.float32)
+        if standardize:
+            im = (im - mean)/std
+        else:
+            im = im / 255
+        im = tf.image.resize(im, shape[:-1])
+        im = tf.broadcast_to(im, shape)
+        lbl = one_hot(lbl)
+        return ( im, lbl )
+
+    return fn
+
+
+def digits_datasets(
+    source_name: str, 
+    target_name: str, 
+    num_source_samples_per_class: int,
+    num_target_samples_per_class: int,
+    num_val_samples_per_class: int,
+    input_shape:ImageShape,
+    standardize_input=True,
+    shuffle_buffer_size=1000,
+    seed=1,
+    test_as_val=False,
+) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:   
+
+    class_names = digits_class_names()
+    num_classes = len(class_names)
+
+    t_data, t_info = tfds.load(target_name, split="train", with_info=True)
+    s_data, s_info = tfds.load(source_name, split="train", with_info=True)
+
+    s_data = s_data.map(preprocess_digits(source_name, input_shape, standardize_input), AUTOTUNE)
+    t_data = t_data.map(preprocess_digits(target_name, input_shape, standardize_input), AUTOTUNE)
+
+    s_full_size = s_info.splits['train'].num_examples
+    s_data.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
+    s_train, _ = balanced_splits(s_data, [num_source_samples_per_class], class_names)
+    s_train_size = num_source_samples_per_class*num_classes
+
+
+    if not test_as_val:
+        t_train, t_val, t_test = \
+            balanced_splits(t_data, [num_target_samples_per_class, num_val_samples_per_class], class_names)
+        t_val_size = num_val_samples_per_class*num_classes 
+    else:
+        t_train, t_test = \
+            balanced_splits( t_data,  [num_target_samples_per_class],  class_names)
+        t_val, t_val_size = None, 0
+
+    t_train_size = num_target_samples_per_class*num_classes 
+    t_test_size = t_info.splits['train'].num_examples - t_train_size - t_val_size
+
+    return {
+        'source': {
+            'full':  ( s_data,  s_full_size ),
+            'train': ( s_train, s_train_size),
+            'shape': s_info.features['image'].shape 
+        },
+        'target': {
+            'train': ( t_train, t_train_size),
+            'val':   ( t_val,   t_val_size),
+            'test':  ( t_test,  t_test_size),
+            'shape': t_info.features['image'].shape 
+        },
+    }
              
 
 def office31_datasets(
@@ -177,25 +361,20 @@ def office31_datasets(
     seed=1,
     features='images',
     test_as_val=False
-) -> Dict[str, Dict[str, Dict[str, Tuple[Dataset, int]]]]:
+) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:   
     ''' Create the datasets needed for evaluating the Office31 dataset
     Returns:
         Dictionary of ['source'|'target'] ['full'|'train'|'test'] ['ds'|'size']
     '''
-    name_mapping = {
-        'A' : 'amazon',
-        'D' : 'dslr',
-        'W' : 'webcam',
-    }
 
-    if source_name in name_mapping.keys():
-        source_name = name_mapping[source_name]
-    elif source_name not in name_mapping.values():
-        raise ValueError('source_name must be one of {}'.format(name_mapping.items()))
-    if target_name in name_mapping.keys():
-        target_name = name_mapping[target_name]
-    elif target_name not in name_mapping.values():
-        raise ValueError('source_name must be one of {}'.format(name_mapping.items()))
+    if source_name in OFFICE_DICT.keys():
+        source_name = OFFICE_DICT[source_name]
+    elif source_name not in OFFICE_DICT.values():
+        raise ValueError('source_name must be one of {}'.format(OFFICE_DICT.items()))
+    if target_name in OFFICE_DICT.keys():
+        target_name = OFFICE_DICT[target_name]
+    elif target_name not in OFFICE_DICT.values():
+        raise ValueError('source_name must be one of {}'.format(OFFICE_DICT.items()))
 
     project_base_path = Path(__file__).parent.parent
     source_data_path = project_base_path / 'datasets' / 'Office31' / source_name / features
@@ -219,13 +398,13 @@ def office31_datasets(
 
     return {
         'source': {
-            'full': { 'ds': s_full, 'size': s_full_size },
-            'train': { 'ds': s_train, 'size': s_train_size},
+            'full':  ( s_full,  s_full_size ),
+            'train': ( s_train, s_train_size),
         },
         'target': {
-            'train': { 'ds': t_train, 'size': t_train_size},
-            'val': { 'ds': t_val, 'size': t_val_size},
-            'test': { 'ds': t_test, 'size': t_test_size},
+            'train': ( t_train, t_train_size),
+            'val':   ( t_val,   t_val_size),
+            'test':  ( t_test,  t_test_size),
         },
     }
 
@@ -233,6 +412,11 @@ def office31_datasets(
 def office31_class_names() -> List[str]:
     data_dir = Path(__file__).parent.parent / 'datasets' / 'Office31' / 'amazon' / 'images'
     return sorted([item.name for item in data_dir.glob('*') if item.is_dir()])
+
+
+def digits_class_names() -> List[int]:
+    return list(range(10))
+
 
 def get_random_tf_seed():
     return tf.random.uniform(
@@ -300,29 +484,32 @@ def da_pair_dataset(
                 # yield (xs, xt), (ys, yt, [ys, yt])
                 yield {mdl_ins[0]:xs, mdl_ins[1]:xt}, {mdl_outs[0]:ys, mdl_outs[1]:yt, mdl_outs[2]:[ys, yt]}
 
-    shapes = ({ mdl_ins[0]:  source_ds.output_shapes[0], 
-                mdl_ins[1]:  target_ds.output_shapes[0] }, 
-              { mdl_outs[0]: source_ds.output_shapes[1], 
-                mdl_outs[1]: target_ds.output_shapes[1], 
-                mdl_outs[2]: tf.compat.v2.TensorShape([2,target_ds.output_shapes[1][0]])
+    source_output_shapes = list(source_ds.output_shapes.values()) if hasattr(source_ds.output_shapes, 'values') else source_ds.output_shapes
+    target_output_shapes = list(target_ds.output_shapes.values()) if hasattr(target_ds.output_shapes, 'values') else target_ds.output_shapes
+    source_output_types = list(source_ds.output_types.values()) if hasattr(source_ds.output_types, 'values') else source_ds.output_types
+    target_output_types = list(target_ds.output_types.values()) if hasattr(target_ds.output_types, 'values') else target_ds.output_types
+
+    shapes = ({ mdl_ins[0]:  source_output_shapes[0], 
+                mdl_ins[1]:  target_output_shapes[0] }, 
+              { mdl_outs[0]: source_output_shapes[1], 
+                mdl_outs[1]: target_output_shapes[1], 
+                mdl_outs[2]: tf.compat.v2.TensorShape([2, *target_output_shapes[1].as_list()])
               })
 
-    types  = ({ mdl_ins[0]:  source_ds.output_types[0], 
-                mdl_ins[1]:  target_ds.output_types[0] }, 
-              { mdl_outs[0]: source_ds.output_types[1], 
-                mdl_outs[1]: target_ds.output_types[1], 
-                mdl_outs[2]: target_ds.output_types[1]
+    types  = ({ mdl_ins[0]:  source_output_types[0], 
+                mdl_ins[1]:  target_output_types[0] }, 
+              { mdl_outs[0]: source_output_types[1], 
+                mdl_outs[1]: target_output_types[1], 
+                mdl_outs[2]: target_output_types[1]
               })
 
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes)#.shuffle(buffer_size=shuffle_buffer_size)
-    return {
-        'ds': mix_ds,
-        'size':size_ds
-    }
+    return (mix_ds, size_ds)
 
 
 def da_pair_repeat_dataset(
-    val_ds: Dict,
+    ds: Dataset,
+    ds_size: int,
     mdl_ins=['input_source', 'input_target'],
     mdl_outs=['preds', 'preds_1', 'aux_out']
 ) -> Tuple[Dataset, int]:
@@ -332,31 +519,28 @@ def da_pair_repeat_dataset(
     '''
     assert tf.executing_eagerly()
 
-    ds = val_ds['ds']
-    size_ds = val_ds['size']
-
     def gen_pars():
         for (d, l) in ds:
             yield {mdl_ins[0]:d, mdl_ins[1]:d}, {mdl_outs[0]:l, mdl_outs[1]:l, mdl_outs[2]:[l,l]}
 
-    shapes = ({ mdl_ins[0]:  ds.output_shapes[0], 
-                mdl_ins[1]:  ds.output_shapes[0] }, 
-              { mdl_outs[0]: ds.output_shapes[1], 
-                mdl_outs[1]: ds.output_shapes[1], 
-                mdl_outs[2]: tf.compat.v2.TensorShape([2,ds.output_shapes[1][0]]) 
+    output_shapes = list(ds.output_shapes.values()) if hasattr(ds.output_shapes, 'values') else ds.output_shapes
+    output_types = list(ds.output_types.values()) if hasattr(ds.output_types, 'values') else ds.output_types
+
+    shapes = ({ mdl_ins[0]:  output_shapes[0], 
+                mdl_ins[1]:  output_shapes[0] }, 
+              { mdl_outs[0]: output_shapes[1], 
+                mdl_outs[1]: output_shapes[1], 
+                mdl_outs[2]: tf.compat.v2.TensorShape([2, *output_shapes[1].as_list()]) 
               })
 
-    types  = ({ mdl_ins[0]:  ds.output_types[0], 
-                mdl_ins[1]:  ds.output_types[0] }, 
-              { mdl_outs[0]: ds.output_types[1], 
-                mdl_outs[1]: ds.output_types[1], 
+    types  = ({ mdl_ins[0]:  output_types[0], 
+                mdl_ins[1]:  output_types[0] }, 
+              { mdl_outs[0]: output_types[1], 
+                mdl_outs[1]: output_types[1], 
                 mdl_outs[2]: tf.bool })
 
     pair_ds = Dataset.from_generator(gen_pars, types, shapes)
-    return {
-        'ds': pair_ds,
-        'size':size_ds
-    }
+    return (pair_ds, ds_size)
     
 
 def make_ds_example(xs, xt, ys, yt): 
@@ -437,14 +621,12 @@ def da_pair_alt_dataset(
     types  = make_ds_types(source_ds, target_ds)
 
     mix_ds = Dataset.from_generator(gen_ratio, types, shapes)#.shuffle(buffer_size=shuffle_buffer_size)
-    return {
-        'ds': mix_ds,
-        'size':size_ds
-    }
+    return (mix_ds, size_ds )
 
 
 def da_pair_alt_repeat_dataset(
-    val_ds: Dict,
+    ds: Dataset,
+    ds_size: int,
     mdl_ins=['input_source', 'input_target'],
     mdl_outs=['preds', 'preds_1', 'aux_out']
 ) -> Tuple[Dataset, int]:
@@ -454,9 +636,6 @@ def da_pair_alt_repeat_dataset(
     '''
     assert tf.executing_eagerly()
 
-    ds = val_ds['ds']
-    size_ds = val_ds['size']
-
     def gen_pars():
         for (d, l) in ds:
             yield make_ds_example(d, d, l, l) 
@@ -465,22 +644,22 @@ def da_pair_alt_repeat_dataset(
     types  = make_ds_types(ds, ds)
 
     pair_ds = Dataset.from_generator(gen_pars, types, shapes)
-    return {
-        'ds'  : pair_ds,
-        'size': size_ds
-    }
+    return ( pair_ds, ds_size )
 
 
 
 def flip(x: tf.Tensor) -> tf.Tensor:
         return tf.image.random_flip_left_right(x)
 
-def color(x: tf.Tensor) -> tf.Tensor:
-    x = tf.image.random_hue(x, 0.08)
-    x = tf.image.random_saturation(x, 0.6, 1.6)
-    x = tf.image.random_brightness(x, 0.05)
-    x = tf.image.random_contrast(x, 0.7, 1.3)
-    return x
+def color(num_chan:int):
+    def fn(x: tf.Tensor) -> tf.Tensor:
+        if num_chan == 3:
+            x = tf.image.random_hue(x, 0.08)
+            x = tf.image.random_saturation(x, 0.6, 1.6)
+        x = tf.image.random_brightness(x, 0.05)
+        x = tf.image.random_contrast(x, 0.7, 1.3)
+        return x
+    return fn
 
 def rotate(x: tf.Tensor) -> tf.Tensor:
     max_rot = PI / 45
@@ -501,12 +680,12 @@ def zoom(x: tf.Tensor, batch_size=16, crop_size=(224,224)) -> tf.Tensor:
 def clip(x: tf.Tensor) -> tf.Tensor:
     return tf.clip_by_value(x, 0, 1)
 
-def augment(dataset:Dataset, batch_size=16, crop_size=(224,224)):
+def augment(dataset:Dataset, batch_size=16, input_shape=(224,224,3)):
     for f in [
-        flip, 
-        color, 
+        # flip, 
+        color(input_shape[-1]), 
         rotate, 
-        partial(zoom, batch_size=batch_size, crop_size=crop_size),
+        partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
         # clip
     ]:
         dataset = dataset.map(
@@ -522,15 +701,15 @@ def augment(dataset:Dataset, batch_size=16, crop_size=(224,224)):
 def augment_pair(
     dataset:Dataset, 
     batch_size=16, 
-    crop_size=(224,224),
+    input_shape=(224,224,3),
     mdl_ins=['input_source', 'input_target'],
     mdl_outs=['preds', 'preds_1', 'aux_out']
 ):
     for f in [
         flip, 
-        color, 
+        color(input_shape[-1]), 
         rotate, 
-        partial(zoom, batch_size=batch_size, crop_size=crop_size),
+        partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
         # clip
     ]:
         dataset = dataset.map(

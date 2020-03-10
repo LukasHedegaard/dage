@@ -65,6 +65,8 @@ def evaluate(
     assert tf.executing_eagerly()
     y_true, y_pred = [], []
     steps = ceil(test_size/batch_size)
+    
+    target_names = [str(tn) for tn in target_names]
 
     if verbose:
         print('Performing predictions on test set')
@@ -88,5 +90,5 @@ def evaluate(
     with open(report_path, 'w') as f:    
         json.dump(cr, f, indent=4)
 
-    return cr['macro avg']['recall']
+    return cr
         

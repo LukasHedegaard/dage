@@ -1,0 +1,88 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File (Integrated Terminal)",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Training on Digits dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "console": "integratedTerminal",
+            "args" : [
+                "--method", "tune_source",
+                "--architecture", "single_stream",
+                "--source", "mnist",
+                "--target", "usps",
+                "--num_source_samples_per_class", "200",
+                "--model_base", "conv2",
+                "--dense_size", "120",
+                "--embed_size", "84",
+                "--epochs", "1",
+                "--batch_size", "64",
+                "--learning_rate", "0.0001",
+                "--dropout", "0.5",
+                "--batch_norm", "0",
+                "--augment", "1",
+                "--resize_mode", "min",
+                "--standardize_input", "0"
+            ]
+        },
+        {
+            "name": "Python: Domain Adaptation on Digits dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "console": "integratedTerminal",
+            "args" : [
+                "--method", "dage",
+                "--connection_type", "SOURCE_TARGET",
+                "--architecture", "two_stream_pair_embeds",
+                "--source", "mnist",
+                "--target", "usps",
+                "--model_base", "conv2",
+                "--dense_size", "120",
+                "--embed_size", "84",
+                "--epochs", "30",
+                "--batch_size", "256",
+                "--num_source_samples_per_class", "200",
+                "--num_target_samples_per_class", "7",
+                "--num_val_samples_per_class", "100",
+                "--shuffle_buffer_size", "1000",
+                "--dropout", "0.1",
+                "--batch_norm", "1",
+                "--standardize_input", "0",
+                "--seed", "1",
+                "--epochs", "20",
+                "--monitor", "acc",
+                "--learning_rate", "0.001",
+                "--batch_norm", "1",
+                "--loss_weights_even", "0.75",
+                "--resize_mode", "3",
+                "--ratio", "3"
+            ]
+        },
+        {
+            "name": "Python: Domain Adaptation on Office dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/run.py",
+            "console": "integratedTerminal",
+            "args" : [
+                "--method", "ccsa",
+                "--architecture", "two_stream_pair_embeds",
+                "--source", "amazon",
+                "--target", "webcam",
+                "--model_base", "vgg16",
+            ]
+        },
+    ]
+}

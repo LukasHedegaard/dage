@@ -1,0 +1,10 @@
+{
+    "acq_func": "EI",
+    "from_checkpoint": "",
+    "id": "dage_mnist_usps_4",
+    "n_calls": 100,
+    "n_random_starts": 10,
+    "noise": null,
+    "seed": null,
+    "verbose": 1
+}

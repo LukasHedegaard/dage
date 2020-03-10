@@ -3,7 +3,7 @@ datasets
 logs
 checkpoints
 wget-log
-# runs
+runs
 
 # Code editor related files
 .vscode/settings.json

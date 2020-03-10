@@ -1,6 +1,6 @@
 import tensorflow as tf
 keras = tf.compat.v2.keras
-from models.common import freeze, get_output_shape, model_dense, model_preds
+from models.common import freeze, get_output_shape, dense_block, preds_block
 
 def model(
     model_base, 
@@ -16,8 +16,8 @@ def model(
 ):
     freeze(model_base, num_leave_unfrozen=num_unfrozen_base_layers)
 
-    model_mid = model_dense(input_shape=get_output_shape(model_base), dense_size=dense_size, embed_size=embed_size, l2=l2, batch_norm=batch_norm, dropout=dropout)
-    model_top = model_preds(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
+    model_mid = dense_block(input_shape=get_output_shape(model_base), dense_sizes=[dense_size, embed_size], l2=l2, batch_norm=batch_norm, dropout=dropout)
+    model_top = preds_block(input_shape=get_output_shape(model_mid), output_shape=output_shape, l2=l2)
 
     model = keras.Sequential([ model_base, model_mid, model_top ])
 
