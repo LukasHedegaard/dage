@@ -13,9 +13,9 @@ AUGMENT=1
 mkdir $DIR_NAME -p
 echo $DESCRIPTION > $DIR_NAME/description.txt
 
-for NUM_TGT_PER_CLASS in 3 #1 3 5 7 
+for NUM_TGT_PER_CLASS in 1 3 5 7 
 do
-    for SEED in 2 #1 2 3 4 5 6 7 8 9 10
+    for SEED in 1 2 3 4 5 6 7 8 9 10
     do
         python run.py \
             --source            mnist \
