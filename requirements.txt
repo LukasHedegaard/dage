@@ -23,7 +23,7 @@ python-dateutil==2.8.0
 python-dotenv==0.10.3
 python-pushover==0.4
 scikit-learn==0.21.3
-scikit-optimize==0.5.2
+-e git://github.com/scikit-optimize/scikit-optimize.git@e082d8041c6a1e7b8f6c252efc62f6e49bfd732c#egg=scikit_optimize
 scipy==1.3.1
 seaborn==0.9.0
 tensorboard==1.15.0

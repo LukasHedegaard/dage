@@ -292,36 +292,3 @@ def dage_loss(
 
     return loss_fn
 
-
-def dage_attention_loss(
-    connection_type: ConnectionType, 
-    weight_type: WeightType,
-    filter_type: FilterType, 
-    penalty_filter_type: FilterType, 
-    filter_param=1,
-    penalty_filter_param=1
-): 
-
-    def loss_fn(lbl_src, lbl_tgt, xs, xt, A, Ap):
-        θϕ = tf.transpose(tf.concat([xs,xt], axis=0))
-
-        # construct Weight matrix
-        W = A #tf.multiply(W, A)
-        Wp = Ap #tf.multiply(Wp, Ap)
-
-        # construct Degree matrix
-        D  = tf.linalg.diag(tf.reduce_sum(W,  axis=1)) 
-        Dp = tf.linalg.diag(tf.reduce_sum(Wp, axis=1))
-
-        # construct Graph Laplacian
-        L  = tf.subtract(D, W)
-        Lp = tf.subtract(Dp, Wp)
-        
-        # construct loss
-        θϕLϕθ  = tf.matmul(θϕ, tf.matmul(L,  θϕ, transpose_b=True))
-        θϕLpϕθ = tf.matmul(θϕ, tf.matmul(Lp, θϕ, transpose_b=True))
-
-        loss = tf.linalg.trace(θϕLϕθ) / tf.linalg.trace(θϕLpϕθ)
-
-        return loss
-    return loss_fn

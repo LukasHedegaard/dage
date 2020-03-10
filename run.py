@@ -132,26 +132,11 @@ def run(args):
                                             penalty_filter_type=args.penalty_connection_filter_type,
                                             filter_param=args.connection_filter_param,
                                             penalty_filter_param=args.penalty_connection_filter_param ),
-        'dage_a' : lambda : losses.dage_attention_loss( 
-                                            connection_type=args.connection_type,
-                                            weight_type=args.weight_type,
-                                            filter_type=args.connection_filter_type,
-                                            penalty_filter_type=args.penalty_connection_filter_type,
-                                            filter_param=args.connection_filter_param,
-                                            penalty_filter_param=args.penalty_connection_filter_param ),
     }[args.method]()
 
     (model, model_test) = {
         'single_stream'         : lambda : models.single_stream.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, optimizer=optimizer, dense_size=args.dense_size, embed_size=args.embed_size, l2=args.l2, dropout=args.dropout),
         'two_stream_pair_embeds': lambda : models.two_stream_pair_embeds.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm, dropout=args.dropout),
-        'two_stream_pair_logits': lambda : models.two_stream_pair_logits.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-        'two_stream_aux_denses' : lambda : models.two_stream_pair_aux_dense.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, aux_dense_size=args.aux_dense_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-        'two_stream_pair_embeds_attention_mid' :  
-                                  lambda : models.two_stream_pair_embeds_attention_mid.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-        'two_stream_pair_embeds_attention_base' :  
-                                  lambda : models.two_stream_pair_embeds_attention_base.model(model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
-        'two_stream_pair_embeds_attention_mid_classwise' :  
-                                  lambda : models.two_stream_pair_embeds_attention_mid_classwise.model(attention_activation=args.attention_activation, model_base=model_base, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE, num_unfrozen_base_layers=args.num_unfrozen_base_layers, dense_size=args.dense_size, embed_size=args.embed_size, optimizer=optimizer, batch_size=args.batch_size, aux_loss=aux_loss, loss_alpha=args.loss_alpha, loss_weights_even=args.loss_weights_even, l2=args.l2, batch_norm=args.batch_norm),
     }[args.architecture]()
 
 
