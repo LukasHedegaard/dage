@@ -1,5 +1,5 @@
 # Domain Adaption using Graph Embedding (DAGE)
-This repository supplies an implementation of a novel domain adaptation method dubbed Domain Adaptation using Graph Embedding (DAGE).
+This repository supplies an implementation of a the supervised domain adaptation method [Domain Adaptation using Graph Embedding (DAGE)]([paper](https://arxiv.org/abs/2003.04063).).
 
 We additionally provide implementations of the following baseline transfer learning and domain adaptation methods:
 * Fine tuning using gradual unfreeze
@@ -11,33 +11,42 @@ We additionally provide implementations of the following baseline transfer learn
 | Experiments | Datasets |
 | ----------- |:--------:|
 | Office-31   | AMAZON (A), DSLR (D), and WEBCAM (W)         |
+| MNIST -> USPS   | MNIST (M), USPS (U)         |
 
 ## Setup
 
 ### Install dependencies
 ```bash
-$ pip install -r requirements.txt
+$ conda env create --file environment.yml
+$ conda activate dage
 ```
 
 ### Download datasets
 ```bash
 $ ./scripts/get_office.sh
+$ ./scripts/get_digits.sh
 ```
 
 
 ## Running the code
-```run.py``` is the entry-point for running the implemented methods.
-A number of scripts are supplied, with which one can test different methods and configurations.
+```run.py``` is the entry-point for running the implemented methods. 
+To retreive a list of valid arguments, use ```python run.py --help```.
+
+A number of ready-to-run scripts are supplied (found in the `scripts` folder), with which one can test different methods and configurations.
 
 An example which tunes a model on source data, and tests on target data is
 ```bash
-$ sh scripts/office31_tune_source.sh
+$ ./scripts/office31_tune_source.sh
+```
+Running DAGE of Office31 with tuned hyperparameters is acheived by using.
+```bash
+$ /scripts/office31_dage_lda_tuned_vgg16.sh
 ```
 
-A short description is included in each script.
+
 
 ## Hyper-parameter optimisation
-A separate python project ```hypersearch.py``` can be used to perform a hyper-parameter search using Bayesian Optimisation.
+A separate python entry-point ```hypersearch.py``` can be used to perform a hyper-parameter search using Bayesian Optimisation.
 
 
 ## Results
