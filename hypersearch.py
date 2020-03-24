@@ -45,7 +45,7 @@ def parse_args():
     search.add_argument(
         "--n_random_starts", type=int, default=10, help="Number of random starts"
     )
-    search.add_argument("--n_calls", type=int, default=15, help="Number of calls")
+    search.add_argument("--n_calls", type=int, default=50, help="Number of calls")
     search.add_argument(
         "--acq_func", type=str, default="EI", help="Acquisition function"
     )
@@ -105,6 +105,7 @@ def run(args):
         ]
     else:
         method_args = [
+            "--method",
             str(args["method"]),
             "--connection_filter_param",
             str(args["loss_param_1"]),
@@ -114,7 +115,7 @@ def run(args):
         experiment_args = [
             "--from_weights",
             "./runs/tune_source/vgg16_aug_ft_best/{}{}/checkpoints/cp-best.ckpt".format(
-                args["source"][0], args["target"][0]
+                args["source"], args["target"]
             ),
             "--num_unfrozen_base_layers",
             str(args["num_unfrozen"]),
@@ -123,11 +124,7 @@ def run(args):
             "--architecture",
             "two_stream_pair_embeds",
             "--model_base",
-            "conv2",
-            "--dense_size",
-            "120",
-            "--embed_size",
-            "84",
+            "vgg16",
             "--batch_size",
             "16",
         ]
@@ -286,7 +283,7 @@ def main(args):
             Real(1e-07, 0.01, "log-uniform", name="lr_decay"),
             Real(0.1, 0.8, "uniform", name="dropout"),
             Real(1e-07, 0.001, "log-uniform", name="l2"),
-            Real(0.1, 0.99, "uniform", name="alpha"),
+            Real(0.01, 0.99, "uniform", name="alpha"),
             Real(0, 1, "uniform", name="ce_ratio"),
             Integer(0, 1, name="bn"),
         ]

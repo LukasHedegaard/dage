@@ -303,7 +303,7 @@ def parse_args(raw_args=None):
     optim_parser.add_argument(
         "--monitor",
         type=str,
-        default="loss",
+        default="acc",
         help='Quantity to monitor during validation: "loss" of "acc". Default: "loss"',
     )
 

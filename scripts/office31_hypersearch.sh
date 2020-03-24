@@ -2,7 +2,7 @@
 DESCRIPTION="Hyperparameter search for Office31 experiments"
 
 GPU_ID=2
-METHOD="dage"
+METHOD="ccsa"
 EXPERIMENT="office"
 
 for SOURCE in A #W D
@@ -13,6 +13,7 @@ do
         then
             if python3 hypersearch.py   \
                 --id                 ${EXPERIMENT}-${METHOD}-${SOURCE}-${TARGET}   \
+                --n_calls          100  \
                 --verbose            1  \
                 --n_random_starts   10  \
                 --acq_func          EI  \
