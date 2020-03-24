@@ -105,6 +105,10 @@ def run(args):
         target_val_ds = target_test_ds
         target_val_size = target_test_size
 
+    if args.val_as_test:
+        target_test_ds = target_val_ds
+        target_test_size = target_val_size
+
     val_ds, val_size = {
         **{
             k: lambda: (target_val_ds, target_val_size)
