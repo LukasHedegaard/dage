@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 DESCRIPTION="Hyperparameter search for Office31 experiments"
 
-GPU_ID=2
-METHOD="ccsa"
+GPU_ID=3
+METHOD="dsne"
 EXPERIMENT="office"
 
-for SOURCE in A #W D
+for SOURCE in W D A
 do
-    for TARGET in D #A W
+    for TARGET in D A W
     do
         if [ $SOURCE != $TARGET ]
         then

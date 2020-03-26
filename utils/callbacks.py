@@ -39,8 +39,8 @@ def early_stop(monitor="loss", verbose=True):
     return keras.callbacks.EarlyStopping(
         monitor=monitor,
         min_delta=0,
-        patience=5,
-        baseline=0.5,
+        patience=1,
+        # baseline=0.5,
         verbose=verbose,
         mode="auto",
         restore_best_weights=True,

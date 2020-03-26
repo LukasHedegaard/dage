@@ -354,17 +354,6 @@ def run(args):
 
     result = 0
 
-    if "validate" in args.mode:
-        result = evaluate(
-            model=model_test,
-            test_dataset=val_ds,
-            test_size=val_size,
-            batch_size=args.batch_size,
-            report_path=report_val_path,
-            verbose=args.verbose,
-            target_names=CLASS_NAMES,
-        )
-
     if "test" in args.mode:
         result = evaluate(
             model=model_test,

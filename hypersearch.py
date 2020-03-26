@@ -193,7 +193,7 @@ def run(args):
             "--ratio",
             "3",
             "--shuffle_buffer_size",
-            "3000",
+            "1000",
             "--delete_checkpoint",
             "1",
         ]

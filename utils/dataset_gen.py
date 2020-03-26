@@ -433,18 +433,27 @@ def office31_datasets_new(
         s_label=do.allow_unique(num_source_per_class)
     )
 
-    target_test, target_trainval = target.split(
+    target_test, target_trainval = target.shuffle(42).split(
         fractions=[0.3, 0.7], seed=42  # hard-coded seed
     )
     target_train, target_val = target_trainval.shuffle(seed).split_filter(
         t_label=do.allow_unique(num_target_per_class)
     )
 
+    # ensure that all one_hot mapping are the same
+    def make_one_hot_mapping():
+        d = {k:i for i, k in enumerate(sorted(target_train.unique(1)))}
+        def fn(key):
+            return d[key]
+        return fn
+
+    one_hot_mapping_fn = make_one_hot_mapping()
+
     # transform all data to use a one-hot encoding for the label
     source, source_train, target_train, target_val, target_test = [
         d.named("data", "label").transform(
             data=[do.image_resize(shape[:2]), do.numpy(), preprocess_input],
-            label=do.one_hot(encoding_size=31),
+            label=do.one_hot(encoding_size=31, mapping_fn=one_hot_mapping_fn),
         )
         for d in [source, source_train, target_train, target_val, target_test]
     ]
@@ -605,21 +614,22 @@ def da_pair_dataset(
             return gen_all
 
         neg_left = target_neg
-        for (xs, ys), (xt, yt) in itertools.product(source_ds, target_ds):
+        for (xs, ys), (xt, yt) in sorted(
+            itertools.product(source_ds, target_ds), key=lambda k: random.random()
+        ):
             eq = equal_tensors(ys, yt)
             if not eq.numpy():
                 if neg_left > 0:
                     neg_left -= 1
-                    # yield xs, xt, ys, yt, [ys, yt]
-                    # yield (xs, xt), (ys, yt, [ys, yt])
-                    yield {mdl_ins[0]: xs, mdl_ins[1]: xt}, {
+                    yield {
+                        mdl_ins[0]: xs, 
+                        mdl_ins[1]: xt
+                    }, {
                         mdl_outs[0]: ys,
                         mdl_outs[1]: yt,
                         mdl_outs[2]: [ys, yt],
                     }
             else:
-                # yield xs, xt, ys, yt, [ys, yt]
-                # yield (xs, xt), (ys, yt, [ys, yt])
                 yield {mdl_ins[0]: xs, mdl_ins[1]: xt}, {
                     mdl_outs[0]: ys,
                     mdl_outs[1]: yt,
