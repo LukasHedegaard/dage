@@ -1,4 +1,4 @@
-datasetops==0.0.5
+datasetops==0.0.6
 ipykernel==5.1.2
 ipython==7.8.0
 ipython-genutils==0.2.0

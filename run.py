@@ -77,14 +77,13 @@ def run(args):
         INPUT_SHAPE = dsg.digits_shape(args.source, args.target, mode=args.resize_mode)
         CLASS_NAMES = dsg.digits_class_names()
         OUTPUT_SHAPE = len(CLASS_NAMES)
-        ds = dsg.digits_datasets(
+        ds = dsg.digits_datasets_new(
             source_name=args.source,
             target_name=args.target,
             num_source_samples_per_class=args.num_source_samples_per_class,
             num_target_samples_per_class=args.num_target_samples_per_class,
             num_val_samples_per_class=args.num_val_samples_per_class,
             seed=seed,
-            test_as_val=args.test_as_val,
             input_shape=INPUT_SHAPE,
             standardize_input=args.standardize_input,
         )
@@ -131,6 +130,12 @@ def run(args):
             k: lambda: dsg.da_pair_dataset(
                 source_ds=source_train_ds,
                 target_ds=target_train_ds,
+                num_source_samples_per_class=(
+                    args.num_source_samples_per_class
+                    or (20 if args.source.lower()[0] == "a" else 8)
+                ),
+                num_target_samples_per_class=(args.num_target_samples_per_class or 3),
+                num_classes=OUTPUT_SHAPE,
                 ratio=args.ratio,
                 shuffle_buffer_size=args.shuffle_buffer_size,
             )

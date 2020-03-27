@@ -13,6 +13,7 @@ import tensorflow as tf
 from math import pi as PI
 from scipy.io import loadmat
 import tensorflow_datasets as tfds
+from torchvision.datasets import USPS
 import datasetops as do
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
@@ -395,6 +396,90 @@ def digits_datasets(
     }
 
 
+def digits_datasets_new(
+    source_name: str,
+    target_name: str,
+    num_source_samples_per_class: int,
+    num_target_samples_per_class: int,
+    num_val_samples_per_class: int,
+    input_shape: ImageShape,
+    standardize_input=True,
+    shuffle_buffer_size=1000,
+    seed=1,
+) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:
+
+    class_names = digits_class_names()
+    num_classes = len(class_names)
+
+    def get_dataset(dataset_name: str):
+        dataset_name = dataset_name.lower()
+        if dataset_name in ["mnist", "mnist_m", "svhn"]:
+            train, info = tfds.load(dataset_name, split="train", with_info=True)
+            test = tfds.load(dataset_name, split="test", with_info=False)
+            train_size = info.splits["train"].num_examples
+            test_size = info.splits["test"].num_examples
+        elif dataset_name == "usps":
+            datasets_path = str((Path(__file__).parent.parent / "datasets").absolute())
+            ds_train = do.from_pytorch(USPS(datasets_path, download=True, train=True))
+            ds_test = do.from_pytorch(USPS(datasets_path, download=True, train=False,))
+            train_size = len(ds_train)
+            test_size = len(ds_test)
+            train = ds_train.transform(
+                lambda x: {
+                    "image": np.expand_dims(np.array(x[0]), axis=2),
+                    "label": x[1],
+                }
+            ).to_tensorflow()
+            test = ds_train.transform(
+                lambda x: {
+                    "image": np.expand_dims(np.array(x[0]), axis=2),
+                    "label": x[1],
+                }
+            ).to_tensorflow()
+        else:
+            raise ValueError(
+                "dataset should be one of ['mnist','mnist_m','svhn','usps']"
+            )
+        return train, test, train_size, test_size
+
+    s_train, s_test, s_train_size, s_test_size = get_dataset(source_name)
+    t_train, t_test, t_train_size, t_test_size = get_dataset(target_name)
+
+    # preprocess
+    s_train = s_train.map(
+        preprocess_digits(source_name, input_shape, standardize_input), AUTOTUNE
+    )
+    t_train = t_train.map(
+        preprocess_digits(target_name, input_shape, standardize_input), AUTOTUNE
+    )
+    t_test = t_test.map(
+        preprocess_digits(target_name, input_shape, standardize_input), AUTOTUNE
+    )
+
+    # source split
+    s_train.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
+    s_train_sampled, _ = balanced_splits(
+        s_train, [num_source_samples_per_class], class_names
+    )
+    s_train_sampled_size = num_source_samples_per_class * num_classes
+
+    # target split
+    t_train_sampled, t_val = balanced_splits(
+        t_train, [num_target_samples_per_class], class_names,
+    )
+    t_train_sampled_size = num_target_samples_per_class * num_classes
+    t_val_size = t_train_size - t_train_sampled_size
+
+    return {
+        "source": {"full": (s_train, s_train_size), "train": (s_train, s_train_size),},
+        "target": {
+            "train": (t_train_sampled, t_train_sampled_size),
+            "val": (t_val, t_val_size),
+            "test": (t_test, t_test_size),
+        },
+    }
+
+
 def office31_datasets_new(
     source_name: str,
     target_name: str,
@@ -423,8 +508,8 @@ def office31_datasets_new(
         project_base_path / "datasets" / "Office31" / target_name / "images"
     )
 
-    source = do.load_folder_class_data(source_data_path).named("s_data", "s_label")
-    target = do.load_folder_class_data(target_data_path).named("t_data", "t_label")
+    source = do.from_folder_class_data(source_data_path).named("s_data", "s_label")
+    target = do.from_folder_class_data(target_data_path).named("t_data", "t_label")
 
     num_source_per_class = 20 if "amazon" in str(source_data_path) else 8
     num_target_per_class = 3
@@ -442,9 +527,11 @@ def office31_datasets_new(
 
     # ensure that all one_hot mapping are the same
     def make_one_hot_mapping():
-        d = {k:i for i, k in enumerate(sorted(target_train.unique(1)))}
+        d = {k: i for i, k in enumerate(sorted(target_train.unique(1)))}
+
         def fn(key):
             return d[key]
+
         return fn
 
     one_hot_mapping_fn = make_one_hot_mapping()
@@ -568,6 +655,9 @@ def get_random_tf_seed():
 def da_pair_dataset(
     source_ds,
     target_ds,
+    num_source_samples_per_class: int = None,
+    num_target_samples_per_class: int = None,
+    num_classes: int = None,
     ratio: Optional[float] = None,
     shuffle_buffer_size=5000,
     mdl_ins=["input_source", "input_target"],
@@ -595,9 +685,26 @@ def da_pair_dataset(
         neg = tot - pos
         return pos, neg
 
-    n_pos, n_neg = count_pair_types(source_ds, target_ds)
-    target_neg = round(n_pos * ratio)
-    size_ds = n_pos + min(n_neg, target_neg)
+    # assumes that data is balanced (equal number of data per class)
+    if not (
+        num_source_samples_per_class and num_source_samples_per_class and num_classes
+    ):
+        n_pos, n_neg = count_pair_types(source_ds, target_ds)
+    else:
+        n_pos = (
+            num_classes
+            * 1
+            * num_source_samples_per_class
+            * num_target_samples_per_class
+        )
+        n_neg = (
+            num_classes
+            * (num_classes - 1)
+            * num_source_samples_per_class
+            * num_source_samples_per_class
+        )
+    target_neg = round(n_pos * ratio) if ratio else n_neg
+    size_ds = n_pos + target_neg
 
     def gen_all():
         for (xs, ys), (xt, yt) in itertools.product(source_ds, target_ds):
@@ -621,10 +728,7 @@ def da_pair_dataset(
             if not eq.numpy():
                 if neg_left > 0:
                     neg_left -= 1
-                    yield {
-                        mdl_ins[0]: xs, 
-                        mdl_ins[1]: xt
-                    }, {
+                    yield {mdl_ins[0]: xs, mdl_ins[1]: xt}, {
                         mdl_outs[0]: ys,
                         mdl_outs[1]: yt,
                         mdl_outs[2]: [ys, yt],
