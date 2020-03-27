@@ -133,7 +133,7 @@ def run(args):
             "--num_source_samples_per_class",
             "200",
             "--num_target_samples_per_class",
-            "3",
+            "4",
             "--num_val_samples_per_class",
             "10",
             "--epochs",
