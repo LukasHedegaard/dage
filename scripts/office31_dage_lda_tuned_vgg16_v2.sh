@@ -2,11 +2,10 @@
 
 DESCRIPTION="DAGE variant resembling Linear Discriminant Analysis with hyperparameters tuned for VGG16 (evaluated solely on validation split - test remains independent)"
 
-EXPERIMENT_ID=dage_lda_vgg16_tuned
+EXPERIMENT_ID=dage_lda_vgg16_tuned_v2
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 GPU_ID=0
-TEST_AS_VAL=1
 AUGMENT=1
 
 mkdir $DIR_NAME -p
@@ -22,7 +21,6 @@ do
         --experiment_id     $EXPERIMENT_ID \
         --seed              $SEED \
         --augment           $AUGMENT \
-        --test_as_val       $TEST_AS_VAL \
         --monitor           acc \
         --architecture      two_stream_pair_embeds \
         --model_base        vgg16 \
@@ -58,7 +56,6 @@ do
         --experiment_id     $EXPERIMENT_ID \
         --seed              $SEED \
         --augment           $AUGMENT \
-        --test_as_val       $TEST_AS_VAL \
         --monitor           acc \
         --architecture      two_stream_pair_embeds \
         --model_base        vgg16 \
@@ -93,7 +90,6 @@ do
         --experiment_id     $EXPERIMENT_ID \
         --seed              $SEED \
         --augment           $AUGMENT \
-        --test_as_val       $TEST_AS_VAL \
         --monitor           acc \
         --architecture      two_stream_pair_embeds \
         --model_base        vgg16 \
@@ -128,7 +124,6 @@ do
         --experiment_id     $EXPERIMENT_ID \
         --seed              $SEED \
         --augment           $AUGMENT \
-        --test_as_val       $TEST_AS_VAL \
         --monitor           acc \
         --architecture      two_stream_pair_embeds \
         --model_base        vgg16 \
@@ -164,7 +159,6 @@ do
         --experiment_id     $EXPERIMENT_ID \
         --seed              $SEED \
         --augment           $AUGMENT \
-        --test_as_val       $TEST_AS_VAL \
         --monitor           acc \
         --architecture      two_stream_pair_embeds \
         --model_base        vgg16 \
@@ -199,7 +193,6 @@ do
         --experiment_id     $EXPERIMENT_ID \
         --seed              $SEED \
         --augment           $AUGMENT \
-        --test_as_val       $TEST_AS_VAL \
         --monitor           acc \
         --architecture      two_stream_pair_embeds \
         --model_base        vgg16 \
