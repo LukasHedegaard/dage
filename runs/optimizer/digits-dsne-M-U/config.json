@@ -1,0 +1,15 @@
+{
+    "acq_func": "EI",
+    "experiment": "digits",
+    "from_checkpoint": "",
+    "gpu_id": "3",
+    "id": "digits-dsne-M-U",
+    "method": "dsne",
+    "n_calls": 100,
+    "n_random_starts": 10,
+    "noise": null,
+    "seed": 42,
+    "source": "mnist",
+    "target": "usps",
+    "verbose": 1
+}
