@@ -3,7 +3,7 @@
 DESCRIPTION="DAGE-LDA for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
 
 METHOD=dage
-EXPERIMENT_ID=dage_lda_mnist_usps_v2
+EXPERIMENT_ID=dage_lda_mnist_usps_new
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 GPU_ID=0
@@ -48,6 +48,7 @@ do
             --loss_alpha                0.47586281871846964 \
             --loss_weights_even         0.5632755719763838 \
             --ratio                     3 \
+            --resize_mode               2 \
             
     done
 done

@@ -3,7 +3,7 @@
 DESCRIPTION="d-SNE for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
 
 METHOD=dsne
-EXPERIMENT_ID=dsne_mnist_usps_v2
+EXPERIMENT_ID=dsne_mnist_usps_new
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 GPU_ID=3
@@ -45,6 +45,7 @@ do
             --loss_alpha                0.06640039255598627 \
             --loss_weights_even         0.06847478236950102 \
             --ratio                     3 \
+            --resize_mode               2 \
 
     done
 done

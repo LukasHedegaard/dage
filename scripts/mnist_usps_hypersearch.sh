@@ -6,7 +6,7 @@ METHOD="dsne"
 EXPERIMENT="digits"
 
 if python3 hypersearch.py   \
-    --id                 ${EXPERIMENT}-${METHOD}-${SOURCE}-${TARGET}   \
+    --id                 ${EXPERIMENT}-${METHOD}-M-U  \
     --n_calls          100  \
     --verbose            1  \
     --n_random_starts   10  \
@@ -18,9 +18,9 @@ if python3 hypersearch.py   \
     --experiment        $EXPERIMENT \
     --gpu_id            $GPU_ID \
 ; then
-    ./scripts/notify.sh "Finished job: 'hypersearch-${EXPERIMENT}-${METHOD}-${SOURCE}-${TARGET}' on GPU ${GPU_ID}."
+    ./scripts/notify.sh "Finished job: 'hypersearch-${EXPERIMENT}-${METHOD}-M-U' on GPU ${GPU_ID}."
 else
-    ./scripts/notify.sh "Error in job: 'hypersearch-${EXPERIMENT}-${METHOD}-${SOURCE}-${TARGET}' on GPU ${GPU_ID}."
+    ./scripts/notify.sh "Error in job: 'hypersearch-${EXPERIMENT}-${METHOD}-M-U' on GPU ${GPU_ID}."
     exit 1
 fi
 

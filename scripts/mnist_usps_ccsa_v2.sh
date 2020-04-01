@@ -3,7 +3,7 @@
 DESCRIPTION="CCSA for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
 
 METHOD=ccsa
-EXPERIMENT_ID=ccsa_mnist_usps
+EXPERIMENT_ID=ccsa_mnist_usps_new
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 GPU_ID=2
@@ -45,6 +45,7 @@ do
             --loss_alpha                0.01 \
             --loss_weights_even         0.3590641982797106 \
             --ratio                     3 \
+            --resize_mode               2 \
 
     done
 done
