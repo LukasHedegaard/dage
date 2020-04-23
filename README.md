@@ -6,7 +6,6 @@ We additionally provide implementations of the following baseline transfer learn
 * [CCSA](https://arxiv.org/abs/1906.00684)
 * [d-SNE](http://openaccess.thecvf.com/content_CVPR_2019/papers/Xu_d-SNE_Domain_Adaptation_Using_Stochastic_Neighborhood_Embedding_CVPR_2019_paper.pdf)
 
-
 ## Datasets and abbreviation
 | Experiments | Datasets |
 | ----------- |:--------:|
@@ -38,19 +37,24 @@ An example which tunes a model on source data, and tests on target data is
 ```bash
 $ ./scripts/office31_tune_source.sh
 ```
-Running DAGE of Office31 with tuned hyperparameters is acheived by using.
+Running DAGE of Office31 with tuned hyperparameters using the revised training splits is acheived by using.
 ```bash
-$ /scripts/office31_dage_lda_tuned_vgg16.sh
+$ /scripts/office31_dage_lda_tuned_vgg16_v2.sh
 ```
 
+Note: The experiments were run on two separate occations. The first time was using the standard approach used in much domain adaptation literature. The second time (the accompaning scripts are postfixed with "_v2") the revised data splits were used to ensure generaliseability of the results.
 
 
 ## Hyper-parameter optimisation
 A separate python entry-point ```hypersearch.py``` can be used to perform a hyper-parameter search using Bayesian Optimisation.
+Script are also supplied for performing a hyperparameter optimisation
+```bash
+$ /scripts/office31_hypersearch.sh
+```
 
 
 ## Results
-A number of notebooks are supplied, in which one can visualise the Office-31 data, see the results of our experiments, and the conducted hyper-parameter search.
+A number of notebooks are supplied, in which one can visualise the Office-31 data, see the results of our experiments and the conducted hyper-parameter search.
 
 ## Authors
 
