@@ -39,7 +39,7 @@ $ ./scripts/office31_tune_source.sh
 ```
 Running DAGE of Office31 with tuned hyperparameters using the revised training splits is acheived by using.
 ```bash
-$ /scripts/office31_dage_lda_tuned_vgg16_v2.sh
+$ ./scripts/office31_dage_lda_tuned_vgg16_v2.sh
 ```
 
 Note: The experiments were run on two separate occations. The first time was using the standard approach used in much domain adaptation literature. The second time (the accompaning scripts are postfixed with "_v2") the revised data splits were used to ensure generaliseability of the results.
@@ -49,7 +49,7 @@ Note: The experiments were run on two separate occations. The first time was usi
 A separate python entry-point ```hypersearch.py``` can be used to perform a hyper-parameter search using Bayesian Optimisation.
 Script are also supplied for performing a hyperparameter optimisation
 ```bash
-$ /scripts/office31_hypersearch.sh
+$ ./scripts/office31_hypersearch.sh
 ```
 
 
