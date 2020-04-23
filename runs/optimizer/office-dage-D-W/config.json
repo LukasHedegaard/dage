@@ -1,0 +1,15 @@
+{
+    "acq_func": "EI",
+    "experiment": "office",
+    "from_checkpoint": "",
+    "gpu_id": "0",
+    "id": "office-dage-D-W",
+    "method": "dage",
+    "n_calls": 100,
+    "n_random_starts": 10,
+    "noise": null,
+    "seed": 42,
+    "source": "D",
+    "target": "W",
+    "verbose": 1
+}
