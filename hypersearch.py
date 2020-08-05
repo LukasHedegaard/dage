@@ -148,6 +148,8 @@ def run(args):
             "84",
             "--batch_size",
             "128",
+            "--resize_mode",
+            "3"
         ]
     else:
         raise ValueError("Unknown args.experiment: {}".format(args["experiment"]))
