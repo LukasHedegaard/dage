@@ -22,6 +22,10 @@ Dataset = tf.compat.v2.data.Dataset
 
 
 def run(args):
+    if args.verbose:
+        print('Run arguments:')
+        print(args)
+    
     if args.gpu_id:
         setup_gpu(args.gpu_id, args.verbose)
 
@@ -53,9 +57,10 @@ def run(args):
     # prepare data
     preprocess_input = {
         "vgg16": lambda x: keras.applications.vgg16.preprocess_input(x, mode="tf"),
-        "resnet101v2": lambda x: keras.applications.resnet_v2.preprocess_input(
-            x, mode="tf"
-        ),  # NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
+        **{
+            k: lambda x: keras.applications.resnet_v2.preprocess_input(x)  # NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
+            for k in ["resnet50", "lenetplresnet101v2us"]
+        },
         "none": lambda x: x[features_config[args.features]["mat_key"]],
         **{k: lambda x: x for k in ["conv2", "lenetplus"]},
     }[args.model_base] or None
@@ -87,7 +92,6 @@ def run(args):
             input_shape=INPUT_SHAPE,
             standardize_input=args.standardize_input,
         )
-
     else:
         raise Exception(
             "The source and target datasets should come from either Office31 or Digits"
@@ -196,6 +200,9 @@ def run(args):
     # prepare model
     model_base = {
         "vgg16": lambda: keras.applications.vgg16.VGG16(
+            input_shape=INPUT_SHAPE, include_top=False, weights="imagenet"
+        ),
+        "resnet50": lambda: keras.applications.resnet50.ResNet50(
             input_shape=INPUT_SHAPE, include_top=False, weights="imagenet"
         ),
         "resnet101v2": lambda: keras.applications.resnet_v2.ResNet101V2(
