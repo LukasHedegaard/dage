@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 DESCRIPTION="Hyperparameter search for Office31 experiments"
 
-GPU_ID=3
-METHOD="dsne"
+GPU_ID=0
+METHOD="dage"
 EXPERIMENT="office"
 
 for SOURCE in W D A
