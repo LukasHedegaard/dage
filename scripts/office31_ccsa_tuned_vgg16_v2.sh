@@ -5,8 +5,9 @@ DESCRIPTION="CCSA evaluation using tuned hyper-parameters (evaluated solely on v
 EXPERIMENT_ID=ccsa_vgg16_tuned_v2
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
-GPU_ID=2
+GPU_ID=3
 AUGMENT=1
+TEST_AS_VAL=1
 
 mkdir $DIR_NAME -p
 echo $DESCRIPTION > $DIR_NAME/description.txt
@@ -43,6 +44,7 @@ do
         --loss_alpha                0.01 \
         --loss_weights_even         0.9591641239112747 \
         --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
 
 
     python run.py \
@@ -75,6 +77,7 @@ do
         --loss_alpha                0.01 \
         --loss_weights_even         1.0 \
         --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
 
     python run.py \
         --source            D \
@@ -106,6 +109,7 @@ do
         --loss_alpha                0.08925549717143938 \
         --loss_weights_even         1.0 \
         --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
 
     python run.py \
         --source            D \
@@ -137,11 +141,14 @@ do
         --loss_alpha                0.01 \
         --loss_weights_even         0.7391198955493959 \
         --ratio                     3 \
+    #     --test_as_val               $TEST_AS_VAL \
 
-
+    echo $TEST_AS_VAL
+    
     python run.py \
         --source            W \
         --target            A \
+        --test_as_val       $TEST_AS_VAL \
         --from_weights      "./runs/tune_source/vgg16_aug_ft_best/WA/checkpoints/cp-best.ckpt" \
         --gpu_id            $GPU_ID \
         --experiment_id     $EXPERIMENT_ID \
@@ -169,6 +176,7 @@ do
         --loss_alpha                0.01 \
         --loss_weights_even         0.9649054568494194 \
         --ratio                     3 \
+        
 
     python run.py \
         --source            W \
@@ -199,7 +207,9 @@ do
         --dropout                   0.31905527271400036 \
         --loss_alpha                0.14573686239359052 \
         --loss_weights_even         0.11926772021493856 \
-        --ratio                     2 \
+        --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
         
 done
-        
+
+./scripts/notify.sh "Finished all jobs: '${EXPERIMENT_ID}-${METHOD}' on GPU ${GPU_ID}."

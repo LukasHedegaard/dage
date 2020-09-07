@@ -5,16 +5,17 @@ We then reduce the learing rate, and perform training again, with some base-laye
 This is repeated, each time unfreezing more layers."
 
 METHOD=tune_source
-GPU_ID=0
+GPU_ID=3
 OPTIMIZER=adam
 ARCHITECTURE=single_stream
-MODEL_BASE=vgg16
+MODEL_BASE=resnet50
 FEATURES=images
 BATCH_SIZE=12
 AUGMENT=1
 EXPERIMENT_ID_BASE="${MODEL_BASE}_aug"
 
-for SEED in 1 2 3 4 5
+
+for SEED in 5
 do
     for SOURCE in A W D
     do

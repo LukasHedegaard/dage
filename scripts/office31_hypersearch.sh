@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 DESCRIPTION="Hyperparameter search for Office31 experiments"
 
-GPU_ID=0
+GPU_ID=2
 METHOD="dage"
 EXPERIMENT="office"
 
-for SOURCE in W D A
+for SOURCE in D
 do
-    for TARGET in D A W
+    for TARGET in W
     do
         if [ $SOURCE != $TARGET ]
         then
             if python3 hypersearch.py   \
                 --id                 ${EXPERIMENT}-${METHOD}-${SOURCE}-${TARGET}   \
-                --n_calls          100  \
+                --n_calls           50  \
                 --verbose            1  \
                 --n_random_starts   10  \
                 --acq_func          EI  \

@@ -7,6 +7,7 @@ DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 GPU_ID=3
 AUGMENT=1
+TEST_AS_VAL=1
 
 mkdir $DIR_NAME -p
 echo $DESCRIPTION > $DIR_NAME/description.txt
@@ -43,6 +44,7 @@ do
         --loss_alpha                0.01 \
         --loss_weights_even         0.5046928524799381 \
         --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
 
 
     python run.py \
@@ -75,6 +77,7 @@ do
         --loss_alpha                0.21847886773019742 \
         --loss_weights_even         1.0 \
         --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
 
     python run.py \
         --source            D \
@@ -106,6 +109,7 @@ do
         --loss_alpha                0.01 \
         --loss_weights_even         1.0 \
         --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
 
     python run.py \
         --source            D \
@@ -137,6 +141,7 @@ do
         --loss_alpha                0.01 \
         --loss_weights_even         0.25312576364917916 \
         --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
 
 
     python run.py \
@@ -169,6 +174,7 @@ do
         --loss_alpha                0.01 \
         --loss_weights_even         1.0 \
         --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
 
     python run.py \
         --source            W \
@@ -199,7 +205,9 @@ do
         --dropout                   0.3065450511281586 \
         --loss_alpha                0.01 \
         --loss_weights_even         0.7788139702663768 \
-        --ratio                     1 \
+        --ratio                     3 \
+        --test_as_val               $TEST_AS_VAL \
         
 done
-        
+
+./scripts/notify.sh "Finished all jobs: '${EXPERIMENT_ID}-${METHOD}' on GPU ${GPU_ID}."
