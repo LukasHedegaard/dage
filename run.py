@@ -57,9 +57,10 @@ def run(args):
     # prepare data
     preprocess_input = {
         "vgg16": lambda x: keras.applications.vgg16.preprocess_input(x, mode="tf"),
+        "resnet50": lambda x: keras.applications.resnet.preprocess_input(x),
         **{
-            k: lambda x: keras.applications.resnet_v2.preprocess_input(x)  # NB: tf v 1.15 has a minor bug in keras_applications.resnet. Fix: change the function signature to "def preprocess_input(x, **kwargs):""
-            for k in ["resnet50", "lenetplresnet101v2us"]
+            k: lambda x: keras.applications.resnet_v2.preprocess_input(x)
+            for k in ["resnet50v2", "resnet101v2"]
         },
         "none": lambda x: x[features_config[args.features]["mat_key"]],
         **{k: lambda x: x for k in ["conv2", "lenetplus"]},
@@ -203,6 +204,9 @@ def run(args):
             input_shape=INPUT_SHAPE, include_top=False, weights="imagenet"
         ),
         "resnet50": lambda: keras.applications.resnet50.ResNet50(
+            input_shape=INPUT_SHAPE, include_top=False, weights="imagenet"
+        ),
+        "resnet50v2": lambda: keras.applications.resnet_v2.ResNet50V2(
             input_shape=INPUT_SHAPE, include_top=False, weights="imagenet"
         ),
         "resnet101v2": lambda: keras.applications.resnet_v2.ResNet101V2(
