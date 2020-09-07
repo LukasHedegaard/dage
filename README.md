@@ -6,12 +6,6 @@ We additionally provide implementations of the following baseline transfer learn
 * [CCSA](https://arxiv.org/abs/1906.00684)
 * [d-SNE](http://openaccess.thecvf.com/content_CVPR_2019/papers/Xu_d-SNE_Domain_Adaptation_Using_Stochastic_Neighborhood_Embedding_CVPR_2019_paper.pdf)
 
-## Datasets and abbreviation
-| Experiments | Datasets |
-| ----------- |:--------:|
-| Office-31   | AMAZON (A), DSLR (D), and WEBCAM (W)         |
-| MNIST -> USPS   | MNIST (M), USPS (U)         |
-
 ## Setup
 
 ### Install dependencies
@@ -54,10 +48,21 @@ $ ./scripts/office31_hypersearch.sh
 
 
 ## Results
-A number of notebooks are supplied, in which one can visualise the Office-31 data, see the results of our experiments and the conducted hyper-parameter search.
+The results come in two flavours. One set of results are for the traditional experimental setup, where the test split is used for validation. The other set are for a rectified experimental protocol], in which the test set is used only for final testing and a propper validation split is defined.
+
+<div align="center">
+  <img src="figures/office_results.png"><br>
+</div>
+
+<div align="center">
+  <img src="figures/digits_results.png"><br>
+</div>
+
+[Source](https://arxiv.org/abs/2004.11262)
 
 ## Authors
 
 * **Lukas Hedegaard** - https://github.com/lukashedegaard
 * **Omar Ali Sheikh-Omar** -  https://github.com/sheikhomar
+* **Alexandros Iosifidis** -  https://github.com/AlekosIosifidis
 

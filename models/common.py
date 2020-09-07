@@ -336,6 +336,8 @@ def train_gradual_unfreeze(
 
     max_unfreeze, step_size = {
         'vgg16'      : (12, 4),
+        'resnet50'   : (20, 5),
+        'resnet50v2' : (20, 5),
         'resnet101v2': (24, 6),
     }[model_base_name]
 
