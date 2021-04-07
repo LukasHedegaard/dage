@@ -1,4 +1,7 @@
 # Domain Adaption using Graph Embedding (DAGE)
+[![Paper](http://img.shields.io/badge/paper-arxiv.2004.11262-B31B1B.svg)](https://arxiv.org/abs/2004.11262)
+[![Paper](http://img.shields.io/badge/paper-arxiv.2003.04063-B31B1B.svg)](https://arxiv.org/abs/2003.04063)
+
 This repository supplies an implementation of a the supervised domain adaptation method [Domain Adaptation using Graph Embedding (DAGE)](https://arxiv.org/abs/2003.04063).
 
 We additionally provide implementations of the following baseline transfer learning and domain adaptation methods:
