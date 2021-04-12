@@ -13,9 +13,12 @@ We additionally provide implementations of the following baseline transfer learn
 
 ### Install dependencies
 ```bash
-$ conda env create --file environment.yml
+$ conda create --name dage python=3.7
 $ conda activate dage
+$ pip install -r requirements.txt
 ```
+
+NB: It is assumed that CUDA 10.0 is installed.
 
 ### Download datasets
 ```bash
