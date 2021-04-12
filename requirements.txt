@@ -1,9 +1,12 @@
+datasetops
 dill
 python-dotenv
 numpy
 scikit-learn
 scikit-optimize
 tensorflow-gpu==1.15
+tensorflow_datasets
+torchvision
 pandas
 seaborn
 python-pushover
