@@ -1,31 +1,33 @@
 from datetime import datetime
+from functools import partial
 from pathlib import Path
+from shutil import rmtree
+from timeit import default_timer as timer
+
+import numpy as np
 import tensorflow as tf
+
+import losses as losses
+import models
+import utils.dataset_gen as dsg
+from utils.callbacks import all as callbacks
+from utils.evaluation import evaluate
+from utils.file_io import load_json, save_json
+from utils.gpu import setup_gpu
+from utils.parse_args import parse_args
 
 tf.compat.v1.enable_eager_execution()
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 keras = tf.compat.v2.keras
-import models
-import utils.dataset_gen as dsg
-from utils.callbacks import all as callbacks
-from utils.parse_args import parse_args
-from utils.evaluation import evaluate
-from utils.file_io import save_json, load_json
-from utils.gpu import setup_gpu
-from functools import partial
-from timeit import default_timer as timer
-import losses as losses
-from shutil import rmtree
-import numpy as np
 
 Dataset = tf.compat.v2.data.Dataset
 
 
-def run(args):
+def run(args):  # noqa: C901
     if args.verbose:
-        print('Run arguments:')
+        print("Run arguments:")
         print(args)
-    
+
     if args.gpu_id:
         setup_gpu(args.gpu_id, args.verbose)
 
@@ -48,7 +50,7 @@ def run(args):
     config_path = outputs_dir / "config.json"
     model_path = outputs_dir / "model.json"
     report_path = outputs_dir / "report.json"
-    report_val_path = outputs_dir / "report_validation.json"
+    # report_val_path = outputs_dir / "report_validation.json"
 
     save_json(args.__dict__, config_path)
 
@@ -329,7 +331,8 @@ def run(args):
         checkpoints_path, tensorboard_dir, monitor=monitor, verbose=args.verbose
     )
 
-    augment = lambda x: x
+    augment = lambda x: x  # noqa: E731
+
     if args.augment:
         if args.features != "images":
             raise ValueError('augment=1 is only allowed for features="images"')
@@ -384,7 +387,7 @@ def run(args):
     if args.delete_checkpoint:
         try:
             rmtree(str(checkpoints_dir.resolve()))
-        except:
+        except Exception:
             pass
 
     return result["accuracy"]  # type:ignore

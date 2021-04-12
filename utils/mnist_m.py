@@ -1,19 +1,17 @@
 # coding=utf-8
 
-""" MNIST-M dataset. 
+""" MNIST-M dataset.
     MNIST blended over patches randomly extracted from color photos from BSDS500
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from PIL import Image
-import numpy as np
 import os
-import tensorflow.compat.v2 as tf
 
+import numpy as np
+import tensorflow.compat.v2 as tf
 import tensorflow_datasets.public_api as tfds
+from PIL import Image
 
 URL = "https://arxiv.org/abs/1505.07818"
 
@@ -35,8 +33,8 @@ DESCRIPTION = (
 
 
 class MnistM(tfds.core.GeneratorBasedBuilder):
-    """ MNIST-M dataset. 
-        MNIST blended over patches randomly extracted from color photos from BSDS500
+    """MNIST-M dataset.
+    MNIST blended over patches randomly extracted from color photos from BSDS500
     """
 
     VERSION = tfds.core.Version("0.1.0")
@@ -49,10 +47,12 @@ class MnistM(tfds.core.GeneratorBasedBuilder):
         return tfds.core.DatasetInfo(
             builder=self,
             description=DESCRIPTION,
-            features=tfds.features.FeaturesDict({
-                "image": tfds.features.Image(shape=(32, 32, 3)),
-                "label": tfds.features.ClassLabel(num_classes=10),
-            }),
+            features=tfds.features.FeaturesDict(
+                {
+                    "image": tfds.features.Image(shape=(32, 32, 3)),
+                    "label": tfds.features.ClassLabel(num_classes=10),
+                }
+            ),
             supervised_keys=("image", "label"),
             homepage=URL,
             citation=CITATION,
@@ -66,21 +66,25 @@ class MnistM(tfds.core.GeneratorBasedBuilder):
         return [
             tfds.core.SplitGenerator(
                 name=tfds.Split.TRAIN,
-                gen_kwargs={ #type: ignore
+                gen_kwargs={  # type: ignore
                     "images_dir_path": os.path.join(extracted_path, "mnist_m_train"),
-                    "labels_path": os.path.join(extracted_path, "mnist_m_train_labels.txt"),
+                    "labels_path": os.path.join(
+                        extracted_path, "mnist_m_train_labels.txt"
+                    ),
                 },
             ),
             tfds.core.SplitGenerator(
                 name=tfds.Split.TEST,
                 gen_kwargs={
                     "images_dir_path": os.path.join(extracted_path, "mnist_m_test"),
-                    "labels_path": os.path.join(extracted_path, "mnist_m_test_labels.txt"),
+                    "labels_path": os.path.join(
+                        extracted_path, "mnist_m_test_labels.txt"
+                    ),
                 },
             ),
         ]
 
-    def _generate_examples(self, images_dir_path:str , labels_path:str):
+    def _generate_examples(self, images_dir_path: str, labels_path: str):
         """Generate examples as dicts.
         Args:
         filepath: `str` path of the file to process.
@@ -89,11 +93,8 @@ class MnistM(tfds.core.GeneratorBasedBuilder):
         """
 
         # the labels file consists of lines of image-names and label pairs, e.g. "00000001.png 2"
-        with tf.io.gfile.GFile(labels_path, "rb") as f: # type: ignore
-            lines = list(map(
-                lambda l: str(l,"utf-8").split(),
-                f.readlines()
-            ))
+        with tf.io.gfile.GFile(labels_path, "rb") as f:  # type: ignore
+            lines = list(map(lambda l: str(l, "utf-8").split(), f.readlines()))
 
         for i, (image_name, label) in enumerate(lines):
             image_path = os.path.join(images_dir_path, image_name)
@@ -106,6 +107,6 @@ class MnistM(tfds.core.GeneratorBasedBuilder):
 
 
 if __name__ == "__main__":
-    # tf.compat.v1.enable_eager_execution() 
+    # tf.compat.v1.enable_eager_execution()
     mnist_m_ds, mnist_m_info = tfds.load("mnist_m", split="train", with_info=True)
     print(mnist_m_info)

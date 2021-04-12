@@ -11,10 +11,10 @@ def load_pkl(path):
     :param path: file path
     :return:
     """
-    with open(path, 'rb') as f:
+    with open(path, "rb") as f:
         tr_x, tr_y, te_x, te_y = pkl.load(f)
-        tr_y = tr_y.ravel().astype('int32')
-        te_y = te_y.ravel().astype('int32')
+        tr_y = tr_y.ravel().astype("int32")
+        te_y = te_y.ravel().astype("int32")
     return tr_x, tr_y, te_x, te_y
 
 
@@ -25,7 +25,7 @@ def save_json(obj, path):
     :param path:
     :return:
     """
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         json.dump(obj, f, indent=4, sort_keys=True)
 
 

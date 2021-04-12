@@ -1,33 +1,40 @@
 import tensorflow as tf
+
 from utils.dataset_gen import DTYPE
 
 
-def dnse_loss(
-    margin=1
-):
+def dnse_loss(margin=1):
     def loss(y_true, y_pred):
-        ''' Tensorflow implementation of d-SNE loss. 
-            Original Mxnet implementation found at https://github.com/aws-samples/d-SNE.
-            @param y_true: tuple or array of two elements, containing source and target features
-            @param y_pred: tuple or array of two elements, containing source and taget labels
-        '''
-        xs = y_pred[:,0]
-        xt = y_pred[:,1]
-        ys = tf.argmax(tf.cast(y_true[:,0], dtype=tf.int32), axis=1)
-        yt = tf.argmax(tf.cast(y_true[:,1], dtype=tf.int32), axis=1)
+        """Tensorflow implementation of d-SNE loss.
+        Original Mxnet implementation found at https://github.com/aws-samples/d-SNE.
+        @param y_true: tuple or array of two elements, containing source and target features
+        @param y_pred: tuple or array of two elements, containing source and taget labels
+        """
+        xs = y_pred[:, 0]
+        xt = y_pred[:, 1]
+        ys = tf.argmax(tf.cast(y_true[:, 0], dtype=tf.int32), axis=1)
+        yt = tf.argmax(tf.cast(y_true[:, 1], dtype=tf.int32), axis=1)
 
         batch_size = tf.shape(ys)[0]
         embed_size = tf.shape(xs)[1]
 
         # The original implementation provided an optional feature-normalisation (L2) here. We'll skip it
 
-        xs_rpt = tf.broadcast_to(tf.expand_dims(xs, axis=0), shape=(batch_size, batch_size, embed_size))
-        xt_rpt = tf.broadcast_to(tf.expand_dims(xt, axis=1), shape=(batch_size, batch_size, embed_size))
+        xs_rpt = tf.broadcast_to(
+            tf.expand_dims(xs, axis=0), shape=(batch_size, batch_size, embed_size)
+        )
+        xt_rpt = tf.broadcast_to(
+            tf.expand_dims(xt, axis=1), shape=(batch_size, batch_size, embed_size)
+        )
 
         dists = tf.reduce_sum(tf.square(xt_rpt - xs_rpt), axis=2)
 
-        yt_rpt = tf.broadcast_to(tf.expand_dims(yt, axis=1), shape=(batch_size, batch_size))
-        ys_rpt = tf.broadcast_to(tf.expand_dims(ys, axis=0), shape=(batch_size, batch_size))
+        yt_rpt = tf.broadcast_to(
+            tf.expand_dims(yt, axis=1), shape=(batch_size, batch_size)
+        )
+        ys_rpt = tf.broadcast_to(
+            tf.expand_dims(ys, axis=0), shape=(batch_size, batch_size)
+        )
 
         y_same = tf.equal(yt_rpt, ys_rpt)
         y_diff = tf.not_equal(yt_rpt, ys_rpt)
