@@ -50,7 +50,10 @@
                 "min",
                 "--standardize_input",
                 "0"
-            ]
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            }
         },
         {
             "name": "Python: Domain Adaptation on Digits dataset",
@@ -60,7 +63,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--method",
-                "dage",
+                "ccsa",
                 "--connection_type",
                 "SOURCE_TARGET",
                 "--architecture",
@@ -108,8 +111,13 @@
                 "--resize_mode",
                 "3",
                 "--ratio",
-                "3"
-            ]
+                "3",
+                "--augment",
+                "1",
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            }
         },
         {
             "name": "Python: Domain Adaptation on Office dataset",
@@ -130,7 +138,10 @@
                 "D",
                 "--model_base",
                 "vgg16",
-            ]
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            }
         },
     ]
 }

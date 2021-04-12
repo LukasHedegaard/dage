@@ -5,7 +5,7 @@ numpy
 scikit-learn
 scikit-optimize
 tensorflow-gpu==1.15
-tensorflow_datasets
+tensorflow_datasets==2.1.0
 torchvision
 pandas
 seaborn
