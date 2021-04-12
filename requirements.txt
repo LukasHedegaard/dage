@@ -1,0 +1,13 @@
+dill
+python-dotenv
+numpy
+scikit-learn
+scikit-optimize
+tensorflow-gpu==1.15
+pandas
+seaborn
+python-pushover
+flake8
+black
+isort
+flake8-black
