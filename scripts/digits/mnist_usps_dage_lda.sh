@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-DESCRIPTION="CCSA for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
+DESCRIPTION="DAGE for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
 
-METHOD=ccsa
+METHOD=dage
 EXPERIMENT_ID=ccsa_digits_mnist_usps
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
@@ -13,7 +13,7 @@ echo $DESCRIPTION > $DIR_NAME/description.txt
 
 NUM_TGT_PER_CLASS=10
 
-for SEED in 5 #1 2 3 4 5 6 7 8 9 10
+for SEED in 0 #1 2 3 4 5 6 7 8 9 10
 do
     python run.py \
         --source            mnist \
@@ -33,16 +33,19 @@ do
         --num_source_samples_per_class  5000 \
         --num_target_samples_per_class  $NUM_TGT_PER_CLASS \
         --method                        $METHOD \
-        --connection_filter_param   0.001 \
-        --batch_norm                0 \
+        --connection_type                   SOURCE_TARGET \
+        --weight_type                       INDICATOR \
+        --connection_filter_type            ALL \
+        --penalty_connection_filter_type    ALL \
+        --batch_norm                1 \
         --optimizer                 adam \
-        --learning_rate             0.007796034316282018 \
-        --learning_rate_decay       7.951162233913946e-04 \
-        --dropout                   0.1 \
-        --l2                        0.0006774403330625222 \
-        --momentum                  0.99 \
-        --loss_alpha                0.01 \
-        --loss_weights_even         0.3590641982797106 \
+        --learning_rate             0.0035753161317240803 \
+        --learning_rate_decay       1.572832625907872e-05 \
+        --dropout                   0.2412034416347774 \
+        --l2                        0.0003828726839315707 \
+        --momentum                  0.984569 \
+        --loss_alpha                0.47586281871846964 \
+        --loss_weights_even         0.5632755719763838 \
         --ratio                     3 \
         --resize_mode               2 \
 
