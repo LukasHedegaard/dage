@@ -470,10 +470,14 @@ def digits_datasets_new(
 
     # source split
     s_train.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
-    # s_train_sampled, _ = balanced_splits(
-    #     s_train, [num_source_samples_per_class], class_names
-    # )
-    # s_train_sampled_size = num_source_samples_per_class * num_classes
+    if num_source_samples_per_class > 0:
+        s_train_sampled, _ = balanced_splits(
+            s_train, [num_source_samples_per_class], class_names
+        )
+        s_train_sampled_size = num_source_samples_per_class * num_classes
+    else:
+        s_train_sampled = s_train
+        s_train_sampled_size = s_train_size
 
     # target split
     t_train_sampled, t_val = balanced_splits(
@@ -487,7 +491,7 @@ def digits_datasets_new(
     return {
         "source": {
             "full": (s_train, s_train_size),
-            "train": (s_train, s_train_size),
+            "train": (s_train_sampled, s_train_sampled_size),
         },
         "target": {
             "train": (t_train_sampled, t_train_sampled_size),
@@ -987,7 +991,7 @@ def color(num_chan: int):
 
 def rotate(x: tf.Tensor) -> tf.Tensor:
     max_rot = PI / 45
-    # return tfa.image.transform_ops.rotate(x, tf.random.uniform(shape=[], minval=-max_rot, maxval=max_rot, dtype=DTYPE), interpolation='BILINEAR')
+
     return tf.contrib.image.rotate(
         x,
         tf.random.uniform(shape=[], minval=-max_rot, maxval=max_rot, dtype=DTYPE),
@@ -1017,7 +1021,7 @@ def augment(dataset: Dataset, batch_size=16, input_shape=(224, 224, 3)):
     for f in [
         # flip,
         color(input_shape[-1]),
-        rotate,
+        # rotate,
         partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
         # clip
     ]:
@@ -1040,9 +1044,9 @@ def augment_pair(
     mdl_outs=["preds", "preds_1", "aux_out"],
 ):
     for f in [
-        flip,
+        # flip,
         color(input_shape[-1]),
-        rotate,
+        # rotate,
         partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
         # clip
     ]:
