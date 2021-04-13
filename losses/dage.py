@@ -218,11 +218,11 @@ def connect_source_target(ys, yt, batch_size, intrinsic=True, penalty=True):
     W, Wp = connect_all(ys, yt, batch_size)
 
     N = 2 * batch_size
-    tile_size = [batch_size, batch_size]
+    tile_size = tf.repeat(batch_size, 2)
     oo = zeros(tile_size, dtype=tf.bool)
     ii = ones(tile_size, dtype=tf.bool)
     ind = tf.concat([tf.concat([oo, ii], axis=0), tf.concat([ii, oo], axis=0)], axis=1)
-    oo = zeros([N, N], dtype=tf.bool)
+    oo = zeros(tf.repeat(N, 2), dtype=tf.bool)
 
     if intrinsic:
         W = tf.where(ind, W, oo)
@@ -235,7 +235,7 @@ def connect_source_target(ys, yt, batch_size, intrinsic=True, penalty=True):
 def connect_source_target_pair(ys, yt, batch_size):
     eq = tf.linalg.diag(tf.equal(ys, yt))
     neq = tf.linalg.diag(tf.not_equal(ys, yt))
-    oo = zeros([batch_size, batch_size], dtype=tf.bool)
+    oo = zeros(tf.repeat(batch_size, 2), dtype=tf.bool)
     W = tf.concat([tf.concat([oo, eq], axis=0), tf.concat([eq, oo], axis=0)], axis=1)
     Wp = tf.concat([tf.concat([oo, neq], axis=0), tf.concat([neq, oo], axis=0)], axis=1)
     return W, Wp
@@ -247,7 +247,6 @@ def dage_loss(
     weight_type: WeightType,
     filter_type: FilterType,
     penalty_filter_type: FilterType,
-    batch_size: int,
     filter_param=1,
     penalty_filter_param=1,
 ):
@@ -303,8 +302,10 @@ def dage_loss(
         xt = y_pred[:, 1]
         θϕ = tf.transpose(tf.concat([xs, xt], axis=0))
 
+        bs = tf.shape(ys)[0]
+
         # construct Weight matrix
-        W, Wp = make_weights(xs, xt, ys, yt, batch_size)
+        W, Wp = make_weights(xs, xt, ys, yt, bs)
 
         # construct Degree matrix
         D = tf.linalg.diag(tf.reduce_sum(W, axis=1))
