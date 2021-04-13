@@ -1,0 +1,1 @@
+DAGE variant resembling Linear Discriminant Analysis with hyperparameters tuned for ResNet50
