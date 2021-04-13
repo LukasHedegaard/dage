@@ -707,11 +707,15 @@ def da_pair_dataset(
             pos += int(equal_tensors(s_lbl, t_lbl).numpy())
             tot += 1
         neg = tot - pos
+        print(f"pos pairs: {pos}")
+        print(f"neg pairs: {neg}")
         return pos, neg
 
     # assumes that data is balanced (equal number of data per class)
     if not (
-        num_source_samples_per_class and num_source_samples_per_class and num_classes
+        num_source_samples_per_class > 0
+        and num_source_samples_per_class
+        and num_classes
     ):
         n_pos, n_neg = count_pair_types(source_ds, target_ds)
     else:

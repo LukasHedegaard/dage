@@ -243,6 +243,7 @@ def run(args):  # noqa: C901
             weight_type=args.weight_type,
             filter_type=args.connection_filter_type,
             penalty_filter_type=args.penalty_connection_filter_type,
+            batch_size=args.batch_size,
             filter_param=args.connection_filter_param,
             penalty_filter_param=args.penalty_connection_filter_param,
         ),
