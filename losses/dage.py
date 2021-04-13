@@ -247,6 +247,7 @@ def dage_loss(
     weight_type: WeightType,
     filter_type: FilterType,
     penalty_filter_type: FilterType,
+    batch_size: int,
     filter_param=1,
     penalty_filter_param=1,
 ):
@@ -301,8 +302,6 @@ def dage_loss(
         xs = y_pred[:, 0]
         xt = y_pred[:, 1]
         θϕ = tf.transpose(tf.concat([xs, xt], axis=0))
-
-        batch_size = tf.shape(ys)[0]
 
         # construct Weight matrix
         W, Wp = make_weights(xs, xt, ys, yt, batch_size)
