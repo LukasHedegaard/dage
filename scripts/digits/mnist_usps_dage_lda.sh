@@ -3,7 +3,7 @@
 DESCRIPTION="DAGE for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
 
 METHOD=dage
-EXPERIMENT_ID=ccsa_digits_mnist_usps
+EXPERIMENT_ID=dage_digits_mnist_usps
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 AUGMENT=1
@@ -13,7 +13,7 @@ echo $DESCRIPTION > $DIR_NAME/description.txt
 
 NUM_TGT_PER_CLASS=10
 
-for SEED in 0 #1 2 3 4 5 6 7 8 9 10
+for SEED in 1 2 3 4 5 #6 7 8 9 10
 do
     python run.py \
         --source            mnist \

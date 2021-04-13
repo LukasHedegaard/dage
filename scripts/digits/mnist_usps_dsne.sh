@@ -3,7 +3,7 @@
 DESCRIPTION="d-SNE for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
 
 METHOD=dsne
-EXPERIMENT_ID=ccsa_digits_mnist_usps
+EXPERIMENT_ID=dsne_digits_mnist_usps
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 AUGMENT=1
@@ -13,7 +13,7 @@ echo $DESCRIPTION > $DIR_NAME/description.txt
 
 NUM_TGT_PER_CLASS=10
 
-for SEED in 0 #1 2 3 4 5 6 7 8 9 10
+for SEED in 1 3 4 5 #1 2 3 4 5 6 7 8 9 10
 do
     python run.py \
         --source            mnist \
@@ -26,14 +26,13 @@ do
         --architecture      two_stream_pair_embeds \
         --model_base        conv2 \
         --features          images \
-        --epochs            20 \
+        --epochs            50 \
         --batch_size        128 \
         --mode              train_and_test \
         --training_regimen  regular \
         --num_source_samples_per_class  5000 \
         --num_target_samples_per_class  $NUM_TGT_PER_CLASS \
         --method                        $METHOD \
-        --method                        dsne \
         --connection_filter_param   0.001 \
         --batch_norm                1 \
         --optimizer                 adam \

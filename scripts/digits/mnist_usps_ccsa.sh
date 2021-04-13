@@ -13,7 +13,7 @@ echo $DESCRIPTION > $DIR_NAME/description.txt
 
 NUM_TGT_PER_CLASS=10
 
-for SEED in 5 #1 2 3 4 5 6 7 8 9 10
+for SEED in 4 5 #1 2 3 4 5 6 7 8 9 10
 do
     python run.py \
         --source            mnist \
@@ -26,7 +26,7 @@ do
         --architecture      two_stream_pair_embeds \
         --model_base        conv2 \
         --features          images \
-        --epochs            20 \
+        --epochs            50 \
         --batch_size        128 \
         --mode              train_and_test \
         --training_regimen  regular \
@@ -37,7 +37,7 @@ do
         --batch_norm                0 \
         --optimizer                 adam \
         --learning_rate             0.007796034316282018 \
-        --learning_rate_decay       7.951162233913946e-04 \
+        --learning_rate_decay       7.951162233913946e-05 \
         --dropout                   0.1 \
         --l2                        0.0006774403330625222 \
         --momentum                  0.99 \
