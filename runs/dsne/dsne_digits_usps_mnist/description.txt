@@ -1,0 +1,1 @@
+d-SNE for USPS to MNIST domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn
