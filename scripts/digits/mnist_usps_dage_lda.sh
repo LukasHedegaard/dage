@@ -13,7 +13,7 @@ echo $DESCRIPTION > $DIR_NAME/description.txt
 
 NUM_TGT_PER_CLASS=10
 
-for SEED in 1 2 3 4 5 #6 7 8 9 10
+for SEED in 1 2 3 4 5
 do
     python run.py \
         --source            mnist \

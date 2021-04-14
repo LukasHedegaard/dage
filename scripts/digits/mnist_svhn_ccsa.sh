@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-DESCRIPTION="CCSA for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
+DESCRIPTION="CCSA for MNIST to SVHN domain adaptation. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
 
 METHOD=ccsa
-EXPERIMENT_ID=ccsa_digits_mnist_usps
+EXPERIMENT_ID=ccsa_digits_mnist_svhn
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 AUGMENT=1
@@ -17,7 +17,7 @@ for SEED in 1 2 3 4 5
 do
     python run.py \
         --source            mnist \
-        --target            usps \
+        --target            svhn \
         --gpu_id            0 \
         --experiment_id     $EXPERIMENT_ID \
         --seed              $SEED \
