@@ -420,6 +420,8 @@ def digits_datasets_new(
     def get_dataset(dataset_name: str):
         dataset_name = dataset_name.lower()
         if dataset_name in ["mnist", "mnist_m", "svhn"]:
+            if dataset_name == "svhn":
+                dataset_name = "svhn_cropped"  # tfds name
             train, info = tfds.load(dataset_name, split="train", with_info=True)
             test = tfds.load(dataset_name, split="test", with_info=False)
             train_size = info.splits["train"].num_examples
