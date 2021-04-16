@@ -26,7 +26,7 @@ do
         --architecture      two_stream_pair_embeds \
         --model_base        conv2 \
         --features          images \
-        --epochs            20 \
+        --epochs            50 \
         --batch_size        128 \
         --mode              train_and_test \
         --training_regimen  regular \
@@ -41,7 +41,7 @@ do
         --optimizer                 adam \
         --learning_rate             0.0035753161317240803 \
         --learning_rate_decay       1.572832625907872e-05 \
-        --dropout                   0.2412034416347774 \
+        --dropout                   0.1 \
         --l2                        0.0003828726839315707 \
         --momentum                  0.984569 \
         --loss_alpha                0.47586281871846964 \

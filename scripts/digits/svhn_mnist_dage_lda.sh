@@ -26,7 +26,7 @@ do
         --architecture      two_stream_pair_embeds \
         --model_base        conv2 \
         --features          images \
-        --epochs            20 \
+        --epochs            50 \
         --batch_size        128 \
         --mode              train_and_test \
         --training_regimen  regular \

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-DESCRIPTION="DAGE for MNIST to USPS domain adaptation. Train on MNIST, test on USPS. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
+DESCRIPTION="DAGE for MNIST to MNIST-M domain adaptation. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn"
 
 METHOD=dage
-EXPERIMENT_ID=dage_digits_mnist_usps
+EXPERIMENT_ID=dage_digits_mnist_mnistm
 DIR_NAME=./runs/$METHOD/$EXPERIMENT_ID
 
 AUGMENT=1
@@ -17,7 +17,7 @@ for SEED in 1 2 3 4 5
 do
     python run.py \
         --source            mnist \
-        --target            usps \
+        --target            mnist_m \
         --gpu_id            0 \
         --experiment_id     $EXPERIMENT_ID \
         --seed              $SEED \

@@ -38,7 +38,7 @@ do
         --optimizer                 adam \
         --learning_rate             0.005030119691186109 \
         --learning_rate_decay       4.128902544505756e-05 \
-        --dropout                   0.1872781583734256 \
+        --dropout                   0.1 \
         --l2                        0.0005074072177526865 \
         --momentum                  0.896316 \
         --loss_alpha                0.06640039255598627 \
