@@ -32,27 +32,27 @@ OFFICE_DICT = {
 DIGITS_DICT = {"M": "mnist", "U": "usps", "Mm": "mnist-m", "S": "svhn"}
 
 OFFICE_DATASET_NAMES = ["A", "D", "W", "amazon", "dslr", "webcam"]
-DIGIT_DATASET_NAMES = ["M", "U", "Mm", "S", "mnist", "usps", "mnist-m", "svhn"]
+DIGIT_DATASET_NAMES = ["M", "U", "Mm", "S", "mnist", "usps", "mnist_m", "svhn"]
 
 
 DIGITS_MEAN = {
     "mnist": (33.31842145),
     "usps": (63.33399645),
-    "mnist-m": (116.76592523, 117.83341324, 104.10233177),
+    "mnist_m": (116.76592523, 117.83341324, 104.10233177),
     "svhn": (115.3679051, 115.38643995, 119.58916846),
 }
 
 DIGITS_STD = {
     "mnist": (78.56748998),
     "usps": (93.39424878),
-    "mnist-m": (64.24722818, 60.37840705, 65.96992975),
+    "mnist_m": (64.24722818, 60.37840705, 65.96992975),
     "svhn": (55.95578582, 57.77526543, 58.26906232),
 }
 
 DIGITS_SHAPE: Dict[str, ImageShape] = {
     "mnist": (28, 28, 1),
     "usps": (16, 16, 1),
-    "mnist-m": (32, 32, 3),
+    "mnist_m": (32, 32, 3),
     "svhn": (32, 32, 3),
 }
 
