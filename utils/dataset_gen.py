@@ -15,6 +15,7 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 from scipy.io import loadmat
 from torchvision.datasets import USPS
+from utils.mnist_m import MnistM  # noqa: F401
 
 from utils.file_io import load_json
 
@@ -419,7 +420,7 @@ def digits_datasets_new(
 
     def get_dataset(dataset_name: str):
         dataset_name = dataset_name.lower()
-        if dataset_name in ["mnist", "mnist_m", "svhn"]:
+        if dataset_name in ["mnist", "svhn", "mnist_m"]:
             if dataset_name == "svhn":
                 dataset_name = "svhn_cropped"  # tfds name
             train, info = tfds.load(dataset_name, split="train", with_info=True)
