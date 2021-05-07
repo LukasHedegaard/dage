@@ -11,7 +11,7 @@ import losses as losses
 import models
 import utils.dataset_gen as dsg
 from utils.callbacks import all as callbacks
-from utils.evaluation import evaluate
+from utils.evaluation import evaluate, extract_features
 from utils.file_io import load_json, save_json
 from utils.gpu import setup_gpu
 from utils.parse_args import parse_args
@@ -105,6 +105,7 @@ def run(args):  # noqa: C901
     target_train_ds, target_train_size = ds["target"]["train"]
     target_val_ds, target_val_size = ds["target"]["val"]
     target_test_ds, target_test_size = ds["target"]["test"]
+    # target_test_ds, target_test_size = ds["source"]["train"]  # TODO: remove
     test_size = target_test_size
 
     if args.test_as_val:
@@ -248,7 +249,7 @@ def run(args):  # noqa: C901
         ),
     }[args.method]()
 
-    (model, model_test) = {
+    (model, model_test, model_features) = {
         "single_stream": lambda: models.single_stream.model(
             model_base=model_base,
             input_shape=INPUT_SHAPE,
@@ -384,13 +385,24 @@ def run(args):  # noqa: C901
             target_names=CLASS_NAMES,
         )
 
+    if "features" in args.mode:
+        result = extract_features(
+            model=model_features,
+            test_dataset=test_ds,
+            test_size=test_size,
+            batch_size=args.batch_size,
+            outputs_dir=outputs_dir,
+            verbose=args.verbose,
+            target_names=CLASS_NAMES,
+        )
+
     if args.delete_checkpoint:
         try:
             rmtree(str(checkpoints_dir.resolve()))
         except Exception:
             pass
 
-    return result["accuracy"]  # type:ignore
+    return result["accuracy"] if "accuracy" in result else -1.0  # type:ignore
 
 
 def main(raw_args=None):

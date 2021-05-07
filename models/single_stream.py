@@ -31,6 +31,7 @@ def model(
     )
 
     model = keras.Sequential([model_base, model_mid, model_top])
+    model_features = keras.Sequential([model_base, model_mid])
 
     model.compile(
         loss=keras.losses.categorical_crossentropy,
@@ -39,4 +40,4 @@ def model(
         metrics=["accuracy"],
     )
 
-    return model, model
+    return model, model, model_features

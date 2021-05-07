@@ -4,6 +4,7 @@ from pathlib import Path
 
 import tensorflow as tf
 from sklearn.metrics import classification_report
+import numpy as np
 
 keras = tf.compat.v2.keras
 Dataset = tf.compat.v2.data.Dataset
@@ -111,3 +112,42 @@ def evaluate(
         json.dump(cr, f, indent=4)
 
     return cr
+
+
+def extract_features(
+    model: Model,
+    test_dataset: Dataset,
+    test_size: int,
+    batch_size: int,
+    outputs_dir: Path,
+    verbose: int,
+    target_names=None,
+    get_data_and_lbls=lambda x: x,
+    get_preds=lambda x: x,
+):
+    assert tf.executing_eagerly()
+    y_true, y_pred = [], []
+    steps = ceil(test_size / batch_size)
+
+    target_names = [str(tn) for tn in target_names]
+
+    if verbose:
+        print("Performing feature extraction on test set")
+
+    progbar = keras.utils.Progbar(steps)
+    ds_iter = iter(test_dataset)
+    for batch in ds_iter:
+        data, lbls = get_data_and_lbls(batch)
+        preds = model.predict_on_batch(data)
+        preds = get_preds(preds)
+        y_pred.extend(preds)
+        y_true.extend(lbls.numpy().argmax(axis=1))
+        progbar.add(1)
+
+    if verbose:
+        print(f"Saving features to {str(outputs_dir)}")
+
+    np.save(outputs_dir / "test_features.npy", y_pred)
+    np.save(outputs_dir / "test_targets.npy", y_true)
+
+    return {}

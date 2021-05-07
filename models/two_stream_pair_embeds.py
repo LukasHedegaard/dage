@@ -52,6 +52,7 @@ def model(
 
     model = keras.models.Model(inputs=[in1, in2], outputs=[out1, out2, aux_out])
     model_test = keras.models.Model(inputs=[in1], outputs=[out1])
+    model_features = keras.models.Model(inputs=[in1], outputs=[mid1])
 
     loss = {
         "preds": keras.losses.categorical_crossentropy,
@@ -72,4 +73,4 @@ def model(
         metrics={"preds": "accuracy", "preds_1": "accuracy"},
     )
 
-    return model, model_test
+    return model, model_test, model_features
