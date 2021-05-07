@@ -1,6 +1,7 @@
 # Domain Adaption using Graph Embedding (DAGE)
 [![Paper](http://img.shields.io/badge/paper-arxiv.2004.11262-B31B1B.svg)](https://arxiv.org/abs/2004.11262)
 [![Paper](http://img.shields.io/badge/paper-arxiv.2003.04063-B31B1B.svg)](https://arxiv.org/abs/2003.04063)
+[![Conference](http://img.shields.io/badge/ICPR-2020-4b44ce.svg)](https://www.micc.unifi.it/icpr2020/)
 
 This repository supplies an implementation of a the supervised domain adaptation method [Domain Adaptation using Graph Embedding (DAGE)](https://arxiv.org/abs/2003.04063).
 
@@ -18,7 +19,10 @@ $ conda activate dage
 $ pip install -r requirements.txt
 ```
 
-NB: It is assumed that CUDA 10.0 is installed.
+If issues are encountered with scikit-optimize, the exact git tag can be installed via: 
+`pip install git+https://github.com/scikit-optimize/scikit-optimize.git@af5450a51599bbfa4846342188948c147ceba14c`
+
+NB: The Tensorflow version used here assumes that CUDA 10.0 is installed.
 
 ### Download datasets
 ```bash
@@ -58,11 +62,10 @@ The results come in two flavours. One set of results are for the traditional exp
 
 <div align="center">
   <img src="figures/office_results.png"><br>
+  <img src="figures/digits_results_1.png"><br>
+  <img src="figures/digits_results_2.png"><br>
 </div>
 
-<div align="center">
-  <img src="figures/digits_results.png"><br>
-</div>
 
 [Source](https://arxiv.org/abs/2004.11262)
 
@@ -72,3 +75,26 @@ The results come in two flavours. One set of results are for the traditional exp
 * **Omar Ali Sheikh-Omar** -  https://github.com/sheikhomar
 * **Alexandros Iosifidis** -  https://github.com/AlekosIosifidis
 
+## Citation
+
+```bibtex
+
+@article{hedegaard2021supervised,
+    title={Supervised Domain Adaptation: A Graph Embedding Perspective and a Rectified Experimental Protocol}, 
+    author={Lukas Hedegaard and Omar Ali Sheikh-Omar and Alexandros Iosifidis},
+    year={2021},
+    eprint={2004.11262},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+    journal={preprint, arXiv:2004.11262}
+}
+```
+
+```bibtex
+@article{hedegaard2020supervised,
+    title={Supervised Domain Adaptation using Graph Embedding},
+    author={Lukas Hedegaard and Omar Ali Sheikh-Omar and Alexandros Iosifidis},
+    journal={Proceedings of the twenty-fifth International Conference on Pattern Recognition (ICPR)}
+    year={2021},
+}
+```
