@@ -1,0 +1,16 @@
+datasetops
+dill
+python-dotenv
+numpy
+scikit-learn==0.21.3
+scikit-optimize==0.6
+tensorflow-gpu==1.15
+tensorflow_datasets==2.1.0
+torchvision
+pandas
+seaborn
+python-pushover
+flake8
+black
+isort
+flake8-black

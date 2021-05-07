@@ -1,25 +1,26 @@
 import argparse
-from datetime import datetime
-import dill  # import needed for the checkpoint pickle to work
-import pickle
-from dotenv import load_dotenv, find_dotenv
-
-load_dotenv(find_dotenv())
 import json
-import numpy as np
 import os
+from datetime import datetime
+from multiprocessing import Pool
 from pathlib import Path
 from pprint import pprint
+
+import dill  # noqa: F401
+import numpy as np
 import pushover
-from skopt import gp_minimize, callbacks, load
-from skopt.callbacks import (
+from dotenv import find_dotenv, load_dotenv
+from skopt import gp_minimize, load
+from skopt.callbacks import (  # if this line below causes problems, install scikit-optimize using: pip install git+https://github.com/scikit-optimize/scikit-optimize/
     CheckpointSaver,
     VerboseCallback,
-)  # if this line below causes problems, install scikit-optimize using: pip install git+https://github.com/scikit-optimize/scikit-optimize/
-from skopt.space import Real, Integer, Categorical
+)
+from skopt.space import Categorical, Integer, Real
 from skopt.utils import use_named_args
-from subprocess import call
-from multiprocessing import Pool
+
+from run import main as nn
+
+load_dotenv(find_dotenv())
 
 
 def parse_args():
@@ -78,9 +79,6 @@ def dict2space(dict):
     return [v for v in dict.values()]
 
 
-from run import main as nn
-
-
 def run(args):
     if True:  # verbose:
         print("Training objective function with parameters:")
@@ -131,13 +129,13 @@ def run(args):
     elif args["experiment"] == "digits":
         experiment_args = [
             "--num_source_samples_per_class",
-            "200",
+            "5000",
             "--num_target_samples_per_class",
-            "4",
-            "--num_val_samples_per_class",
             "10",
-            "--epochs",
+            "--num_val_samples_per_class",
             "50",
+            "--epochs",
+            "20",
             "--architecture",
             "two_stream_pair_embeds",
             "--model_base",
@@ -149,7 +147,7 @@ def run(args):
             "--batch_size",
             "128",
             "--resize_mode",
-            "3"
+            "2",
         ]
     else:
         raise ValueError("Unknown args.experiment: {}".format(args["experiment"]))
@@ -318,7 +316,8 @@ def main(args):
         # ensure that same space keys are used
         for i, dim in enumerate(res.space.dimensions):
             if not (
-                dim.name == search_space[i].name and type(dim) == type(search_space[i])
+                dim.name == search_space[i].name
+                and isinstance(dim, type(search_space[i]))
             ):
                 raise ValueError(
                     """

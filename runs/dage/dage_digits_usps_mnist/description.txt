@@ -1,0 +1,1 @@
+DAGE for USPS to MNIST domain adaptation. Using hyperparameters found in ~/notebooks/hypersearch-results.ipybn

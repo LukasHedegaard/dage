@@ -1,20 +1,23 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
-import numpy as np
-from pathlib import Path
-from typing import List, Union, Optional, Dict, Tuple, Callable, Any, Iterable
+
+import itertools
 import random
 from functools import partial, reduce
-import itertools
-from utils.file_io import load_json
-from utils import usps
-import tensorflow as tf
 
 # import tensorflow_addons as tfa
 from math import pi as PI
-from scipy.io import loadmat
-import tensorflow_datasets as tfds
-from torchvision.datasets import USPS
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+
 import datasetops as do
+import numpy as np
+import tensorflow as tf
+import tensorflow_datasets as tfds
+from scipy.io import loadmat
+from torchvision.datasets import USPS
+from utils.mnist_m import MnistM  # noqa: F401
+
+from utils.file_io import load_json
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 Dataset = tf.compat.v2.data.Dataset
@@ -30,27 +33,27 @@ OFFICE_DICT = {
 DIGITS_DICT = {"M": "mnist", "U": "usps", "Mm": "mnist-m", "S": "svhn"}
 
 OFFICE_DATASET_NAMES = ["A", "D", "W", "amazon", "dslr", "webcam"]
-DIGIT_DATASET_NAMES = ["M", "U", "Mm", "S", "mnist", "usps", "mnist-m", "svhn"]
+DIGIT_DATASET_NAMES = ["M", "U", "Mm", "S", "mnist", "usps", "mnist_m", "svhn"]
 
 
 DIGITS_MEAN = {
     "mnist": (33.31842145),
     "usps": (63.33399645),
-    "mnist-m": (116.76592523, 117.83341324, 104.10233177),
+    "mnist_m": (116.76592523, 117.83341324, 104.10233177),
     "svhn": (115.3679051, 115.38643995, 119.58916846),
 }
 
 DIGITS_STD = {
     "mnist": (78.56748998),
     "usps": (93.39424878),
-    "mnist-m": (64.24722818, 60.37840705, 65.96992975),
+    "mnist_m": (64.24722818, 60.37840705, 65.96992975),
     "svhn": (55.95578582, 57.77526543, 58.26906232),
 }
 
 DIGITS_SHAPE: Dict[str, ImageShape] = {
     "mnist": (28, 28, 1),
     "usps": (16, 16, 1),
-    "mnist-m": (32, 32, 3),
+    "mnist_m": (32, 32, 3),
     "svhn": (32, 32, 3),
 }
 
@@ -74,7 +77,8 @@ def digits_shape(source: str, target: str, mode: int = 1) -> ImageShape:
 
 
 def make_image_prep(
-    shape=[224, 224, 3], preprocess_input_fn: Callable = None,
+    shape=[224, 224, 3],
+    preprocess_input_fn: Callable = None,
 ):
     shape = shape[:2]
 
@@ -103,7 +107,8 @@ def make_image_prep(
 
 
 def make_mat_prep(
-    shape=[224, 224, 3], preprocess_input_fn: Callable = None,
+    shape=[224, 224, 3],
+    preprocess_input_fn: Callable = None,
 ):
     def prep(file_path):
         d = loadmat(file_path)
@@ -117,7 +122,9 @@ def make_mat_prep(
 
 
 def dataset_from_paths(
-    data_paths: List[str], preprocess_input: Callable = None, shape=[224, 224, 3],
+    data_paths: List[str],
+    preprocess_input: Callable = None,
+    shape=[224, 224, 3],
 ):
     CLASS_NAMES = tf.constant(sorted(list(set([p.split("/")[-2] for p in data_paths]))))
     data_type = Path(data_paths[0]).suffix if data_paths else "none"
@@ -413,7 +420,9 @@ def digits_datasets_new(
 
     def get_dataset(dataset_name: str):
         dataset_name = dataset_name.lower()
-        if dataset_name in ["mnist", "mnist_m", "svhn"]:
+        if dataset_name in ["mnist", "svhn", "mnist_m"]:
+            if dataset_name == "svhn":
+                dataset_name = "svhn_cropped"  # tfds name
             train, info = tfds.load(dataset_name, split="train", with_info=True)
             test = tfds.load(dataset_name, split="test", with_info=False)
             train_size = info.splits["train"].num_examples
@@ -421,7 +430,13 @@ def digits_datasets_new(
         elif dataset_name == "usps":
             datasets_path = str((Path(__file__).parent.parent / "datasets").absolute())
             ds_train = do.from_pytorch(USPS(datasets_path, download=True, train=True))
-            ds_test = do.from_pytorch(USPS(datasets_path, download=True, train=False,))
+            ds_test = do.from_pytorch(
+                USPS(
+                    datasets_path,
+                    download=True,
+                    train=False,
+                )
+            )
             train_size = len(ds_train)
             test_size = len(ds_test)
             train = ds_train.transform(
@@ -458,20 +473,29 @@ def digits_datasets_new(
 
     # source split
     s_train.shuffle(buffer_size=shuffle_buffer_size, seed=seed)
-    s_train_sampled, _ = balanced_splits(
-        s_train, [num_source_samples_per_class], class_names
-    )
-    s_train_sampled_size = num_source_samples_per_class * num_classes
+    if num_source_samples_per_class > 0:
+        s_train_sampled, _ = balanced_splits(
+            s_train, [num_source_samples_per_class], class_names
+        )
+        s_train_sampled_size = num_source_samples_per_class * num_classes
+    else:
+        s_train_sampled = s_train
+        s_train_sampled_size = s_train_size
 
     # target split
     t_train_sampled, t_val = balanced_splits(
-        t_train, [num_target_samples_per_class], class_names,
+        t_train,
+        [num_target_samples_per_class],
+        class_names,
     )
     t_train_sampled_size = num_target_samples_per_class * num_classes
     t_val_size = t_train_size - t_train_sampled_size
 
     return {
-        "source": {"full": (s_train, s_train_size), "train": (s_train, s_train_size),},
+        "source": {
+            "full": (s_train, s_train_size),
+            "train": (s_train_sampled, s_train_sampled_size),
+        },
         "target": {
             "train": (t_train_sampled, t_train_sampled_size),
             "val": (t_val, t_val_size),
@@ -487,7 +511,7 @@ def office31_datasets_new(
     preprocess_input: Callable = None,
     seed=1,
 ) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:
-    """ Create the datasets needed for evaluating the Office31 dataset
+    """Create the datasets needed for evaluating the Office31 dataset
     Returns:
         Dictionary of ['source'|'target'] ['full'|'train'|'test'] ['ds'|'size']
     """
@@ -567,7 +591,7 @@ def office31_datasets(
     features="images",
     test_as_val=False,
 ) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:
-    """ Create the datasets needed for evaluating the Office31 dataset
+    """Create the datasets needed for evaluating the Office31 dataset
     Returns:
         Dictionary of ['source'|'target'] ['full'|'train'|'test'] ['ds'|'size']
     """
@@ -601,7 +625,7 @@ def office31_datasets(
         source_data_path, n_source_samples, preprocess_input, shape, seed
     )
 
-    if test_as_val == False:
+    if not test_as_val:
         (
             t_train,
             t_val,
@@ -624,7 +648,10 @@ def office31_datasets(
         t_val, t_val_size = None, 0
 
     return {
-        "source": {"full": (s_full, s_full_size), "train": (s_train, s_train_size),},
+        "source": {
+            "full": (s_full, s_full_size),
+            "train": (s_train, s_train_size),
+        },
         "target": {
             "train": (t_train, t_train_size),
             "val": (t_val, t_val_size),
@@ -663,10 +690,10 @@ def da_pair_dataset(
     mdl_ins=["input_source", "input_target"],
     mdl_outs=["preds", "preds_1", "aux_out"],
 ) -> Tuple[Dataset, int]:
-    """ Create a paired dataset of positive and negative pairs from source and target datasets.
-        NB: This has not been optimized for large datasets!
-        NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
-        @returns: the paired dataset and its size
+    """Create a paired dataset of positive and negative pairs from source and target datasets.
+    NB: This has not been optimized for large datasets!
+    NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
+    @returns: the paired dataset and its size
     """
     assert tf.executing_eagerly()
 
@@ -683,11 +710,15 @@ def da_pair_dataset(
             pos += int(equal_tensors(s_lbl, t_lbl).numpy())
             tot += 1
         neg = tot - pos
+        print(f"pos pairs: {pos}")
+        print(f"neg pairs: {neg}")
         return pos, neg
 
     # assumes that data is balanced (equal number of data per class)
     if not (
-        num_source_samples_per_class and num_source_samples_per_class and num_classes
+        num_source_samples_per_class > 0
+        and num_source_samples_per_class
+        and num_classes
     ):
         n_pos, n_neg = count_pair_types(source_ds, target_ds)
     else:
@@ -793,9 +824,9 @@ def da_pair_repeat_dataset(
     mdl_ins=["input_source", "input_target"],
     mdl_outs=["preds", "preds_1", "aux_out"],
 ) -> Tuple[Dataset, int]:
-    """ Create a paired dataset by repeating the data on two streams
-        NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
-        @returns: the paired dataset and its size
+    """Create a paired dataset by repeating the data on two streams
+    NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
+    @returns: the paired dataset and its size
     """
     assert tf.executing_eagerly()
 
@@ -868,12 +899,15 @@ def make_ds_types(source_ds, target_ds):
 
 
 def da_pair_alt_dataset(
-    source_ds, target_ds, ratio: Optional[float] = None, shuffle_buffer_size=5000,
+    source_ds,
+    target_ds,
+    ratio: Optional[float] = None,
+    shuffle_buffer_size=5000,
 ) -> Tuple[Dataset, int]:
-    """ Create a paired dataset of positive and negative pairs from source and target datasets.
-        NB: This has not been optimized for large datasets!
-        NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
-        @returns: the paired dataset and its size
+    """Create a paired dataset of positive and negative pairs from source and target datasets.
+    NB: This has not been optimized for large datasets!
+    NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
+    @returns: the paired dataset and its size
     """
     assert tf.executing_eagerly()
 
@@ -929,9 +963,9 @@ def da_pair_alt_repeat_dataset(
     mdl_ins=["input_source", "input_target"],
     mdl_outs=["preds", "preds_1", "aux_out"],
 ) -> Tuple[Dataset, int]:
-    """ Create a paired dataset by repeating the data on two streams
-        NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
-        @returns: the paired dataset and its size
+    """Create a paired dataset by repeating the data on two streams
+    NB: this assumes a certain naming of the model inputs and outputs (can be specified as parameter)
+    @returns: the paired dataset and its size
     """
     assert tf.executing_eagerly()
 
@@ -964,7 +998,7 @@ def color(num_chan: int):
 
 def rotate(x: tf.Tensor) -> tf.Tensor:
     max_rot = PI / 45
-    # return tfa.image.transform_ops.rotate(x, tf.random.uniform(shape=[], minval=-max_rot, maxval=max_rot, dtype=DTYPE), interpolation='BILINEAR')
+
     return tf.contrib.image.rotate(
         x,
         tf.random.uniform(shape=[], minval=-max_rot, maxval=max_rot, dtype=DTYPE),
@@ -994,7 +1028,7 @@ def augment(dataset: Dataset, batch_size=16, input_shape=(224, 224, 3)):
     for f in [
         # flip,
         color(input_shape[-1]),
-        rotate,
+        # rotate,
         partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
         # clip
     ]:
@@ -1017,9 +1051,9 @@ def augment_pair(
     mdl_outs=["preds", "preds_1", "aux_out"],
 ):
     for f in [
-        flip,
+        # flip,
         color(input_shape[-1]),
-        rotate,
+        # rotate,
         partial(zoom, batch_size=batch_size, crop_size=input_shape[:-1]),
         # clip
     ]:
