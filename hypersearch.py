@@ -129,13 +129,13 @@ def run(args):
     elif args["experiment"] == "digits":
         experiment_args = [
             "--num_source_samples_per_class",
-            "200",
+            "5000",
             "--num_target_samples_per_class",
-            "4",
-            "--num_val_samples_per_class",
             "10",
-            "--epochs",
+            "--num_val_samples_per_class",
             "50",
+            "--epochs",
+            "20",
             "--architecture",
             "two_stream_pair_embeds",
             "--model_base",
@@ -147,7 +147,7 @@ def run(args):
             "--batch_size",
             "128",
             "--resize_mode",
-            "3",
+            "2",
         ]
     else:
         raise ValueError("Unknown args.experiment: {}".format(args["experiment"]))
