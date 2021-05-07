@@ -37,15 +37,15 @@ do
         --weight_type                       INDICATOR \
         --connection_filter_type            ALL \
         --penalty_connection_filter_type    ALL \
-        --batch_norm                1 \
+        --batch_norm                0 \
         --optimizer                 adam \
-        --learning_rate             0.0035753161317240803 \
-        --learning_rate_decay       1.572832625907872e-05 \
+        --learning_rate             0.0004992492750990689 \
+        --learning_rate_decay       1e-07 \
         --dropout                   0.1 \
-        --l2                        0.0003828726839315707 \
-        --momentum                  0.984569 \
-        --loss_alpha                0.47586281871846964 \
-        --loss_weights_even         0.5632755719763838 \
+        --l2                        5.644014622137777e-06 \
+        --momentum                  0.9730656107 \
+        --loss_alpha                0.49936462910179 \
+        --loss_weights_even         0.9980778285881913 \
         --ratio                     3 \
         --resize_mode               2 \
 

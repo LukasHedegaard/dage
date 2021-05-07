@@ -33,16 +33,16 @@ do
         --num_source_samples_per_class  5000 \
         --num_target_samples_per_class  $NUM_TGT_PER_CLASS \
         --method                        $METHOD \
-        --connection_filter_param   0.001 \
+        --connection_filter_param   2.2338154260715553 \
         --batch_norm                0 \
         --optimizer                 adam \
-        --learning_rate             0.007796034316282018 \
-        --learning_rate_decay       7.951162233913946e-05 \
-        --dropout                   0.1 \
-        --l2                        0.0006774403330625222 \
-        --momentum                  0.99 \
+        --learning_rate             0.002712171273863144 \
+        --learning_rate_decay       1e-07 \
+        --dropout                   0.5627530776403237 \
+        --l2                        0.00012180458997046827 \
+        --momentum                  0.5 \
         --loss_alpha                0.01 \
-        --loss_weights_even         0.3590641982797106 \
+        --loss_weights_even         0.7798576737350571 \
         --ratio                     3 \
         --resize_mode               2 \
 
