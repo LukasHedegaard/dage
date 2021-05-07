@@ -1,0 +1,15 @@
+{
+    "acq_func": "EI",
+    "experiment": "digits",
+    "from_checkpoint": "",
+    "gpu_id": "0",
+    "id": "digits-ccsa-mnist-svhn",
+    "method": "ccsa",
+    "n_calls": 50,
+    "n_random_starts": 10,
+    "noise": null,
+    "seed": 42,
+    "source": "mnist",
+    "target": "svhn",
+    "verbose": 1
+}
