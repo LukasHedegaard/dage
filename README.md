@@ -62,7 +62,9 @@ The results come in two flavours. One set of results are for the traditional exp
 
 <div align="center">
   <img src="figures/office_results.png"><br>
+
   <img src="figures/digits_results_1.png"><br>
+  
   <img src="figures/digits_results_2.png"><br>
 </div>
 
