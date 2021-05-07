@@ -94,7 +94,7 @@ The results come in two flavours. One set of results are for the traditional exp
 @article{hedegaard2020supervised,
     title={Supervised Domain Adaptation using Graph Embedding},
     author={Lukas Hedegaard and Omar Ali Sheikh-Omar and Alexandros Iosifidis},
-    journal={Proceedings of the twenty-fifth International Conference on Pattern Recognition (ICPR)}
-    year={2021},
+    journal={International Conference on Pattern Recognition (ICPR)}
+    year={2020},
 }
 ```
