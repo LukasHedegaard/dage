@@ -12,7 +12,7 @@ def parse_args(raw_args=None):
 
     os_parser = parser.add_argument_group(description="OS")
     os_parser.add_argument(
-        "--gpu_id", type=str, default="2", help="Which GPU to use. Default: 2"
+        "--gpu_id", type=str, default="0", help="Which GPU to use. Default: 0"
     )
     os_parser.add_argument(
         "--delete_checkpoint",

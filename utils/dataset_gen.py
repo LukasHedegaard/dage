@@ -34,7 +34,8 @@ DIGITS_DICT = {"M": "mnist", "U": "usps", "Mm": "mnist-m", "S": "svhn"}
 
 OFFICE_DATASET_NAMES = ["A", "D", "W", "amazon", "dslr", "webcam"]
 DIGIT_DATASET_NAMES = ["M", "U", "Mm", "S", "mnist", "usps", "mnist_m", "svhn"]
-
+# The VisDA adaptation is predifined, so we only have one option
+VISDA_DATASET_NAMES = ["visda"]
 
 DIGITS_MEAN = {
     "mnist": (33.31842145),
@@ -504,6 +505,10 @@ def digits_datasets_new(
     }
 
 
+def digits_class_names() -> List[int]:
+    return list(range(10))
+
+
 def office31_datasets_new(
     source_name: str,
     target_name: str,
@@ -667,8 +672,76 @@ def office31_class_names() -> List[str]:
     return sorted([item.name for item in data_dir.glob("*") if item.is_dir()])
 
 
-def digits_class_names() -> List[int]:
-    return list(range(10))
+def visda_datasets(
+    shape=[224, 224, 3],  # TODO: pick correct one.
+    preprocess_input: Callable = None,
+    seed=1,
+) -> Dict[str, Dict[str, Tuple[Dataset, int]]]:
+    """Create the datasets needed for evaluating the Office31 dataset
+    Returns:
+        Dictionary of ['source'|'target'] ['full'|'train'|'test'] ['ds'|'size']
+    """
+
+    project_base_path = Path(__file__).parent.parent
+    source_data_path = project_base_path / "datasets" / "visda-c" / "train"
+    target_data_path = project_base_path / "datasets" / "visda-c" / "validation"
+
+    source = do.from_folder_class_data(source_data_path).named("s_data", "s_label")
+    target = do.from_folder_class_data(target_data_path).named("t_data", "t_label")
+
+    num_source_per_class = 50  # Is there a correct one?
+    source_train = source.shuffle(seed).filter(
+        s_label=do.allow_unique(num_source_per_class)
+    )
+    # source_train = source
+
+    target_test, target_trainval = target.shuffle(42).split(
+        fractions=[0.3, 0.7], seed=42  # hard-coded seed
+    )
+
+    num_target_per_class = 10
+    target_train, target_val = target_trainval.shuffle(seed).split_filter(
+        t_label=do.allow_unique(num_target_per_class)
+    )
+
+    # ensure that all one_hot mapping are the same
+    def make_one_hot_mapping():
+        d = {k: i for i, k in enumerate(sorted(target_train.unique(1)))}
+
+        def fn(key):
+            return d[key]
+
+        return fn
+
+    one_hot_mapping_fn = make_one_hot_mapping()
+
+    # transform all data to use a one-hot encoding for the label
+    source, source_train, target_train, target_val, target_test = [
+        d.named("data", "label").transform(
+            data=[do.image_resize(shape[:2]), do.numpy(), preprocess_input],
+            label=do.one_hot(
+                encoding_size=len(visda_class_names()), mapping_fn=one_hot_mapping_fn
+            ),
+        )
+        for d in [source, source_train, target_train, target_val, target_test]
+    ]
+
+    return {
+        "source": {
+            "full": (source.to_tensorflow(), len(source)),
+            "train": (source_train.to_tensorflow(), len(source_train)),
+        },
+        "target": {
+            "train": (target_train.to_tensorflow(), len(target_train)),
+            "val": (target_val.to_tensorflow(), len(target_val)),
+            "test": (target_test.to_tensorflow(), len(target_test)),
+        },
+    }
+
+
+def visda_class_names() -> List[str]:
+    data_dir = Path(__file__).parent.parent / "datasets" / "visda-c" / "train"
+    return sorted([item.name for item in data_dir.glob("*") if item.is_dir()])
 
 
 def get_random_tf_seed():
