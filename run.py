@@ -378,6 +378,7 @@ def run(args):  # noqa: C901
             batch_size=args.batch_size,
             callbacks=fit_callbacks,
             verbose=args.verbose,
+            triangular_learning_rate=False,
         )
         train_time = timer() - start_time
         if args.verbose:
