@@ -681,7 +681,7 @@ def visda_datasets(
     Returns:
         Dictionary of ['source'|'target'] ['full'|'train'|'test'] ['ds'|'size']
     """
-
+    print("Preparing VisDA dataset")
     project_base_path = Path(__file__).parent.parent
     source_data_path = project_base_path / "datasets" / "visda-c" / "train"
     target_data_path = project_base_path / "datasets" / "visda-c" / "validation"
@@ -689,7 +689,7 @@ def visda_datasets(
     source = do.from_folder_class_data(source_data_path).named("s_data", "s_label")
     target = do.from_folder_class_data(target_data_path).named("t_data", "t_label")
 
-    num_source_per_class = 50  # Is there a correct one?
+    num_source_per_class = 5000
     source_train = source.shuffle(seed).filter(
         s_label=do.allow_unique(num_source_per_class)
     )
@@ -715,10 +715,17 @@ def visda_datasets(
 
     one_hot_mapping_fn = make_one_hot_mapping()
 
+    def to_rgb(x):
+        if len(x.shape) == 2:
+            x = np.expand_dims(x, -1)
+        if x.shape != (*shape[:2], 3):
+            x = np.broadcast_to(x, (*shape[:2], 3))
+        return x
+
     # transform all data to use a one-hot encoding for the label
     source, source_train, target_train, target_val, target_test = [
         d.named("data", "label").transform(
-            data=[do.image_resize(shape[:2]), do.numpy(), preprocess_input],
+            data=[do.image_resize(shape[:2]), do.numpy(), to_rgb, preprocess_input],
             label=do.one_hot(
                 encoding_size=len(visda_class_names()), mapping_fn=one_hot_mapping_fn
             ),
@@ -844,25 +851,29 @@ def da_pair_dataset(
                     mdl_outs[2]: [ys, yt],
                 }
 
+    source_ds_output_shapes = tf.compat.v1.data.get_output_shapes(source_ds)
     source_output_shapes = (
-        list(source_ds.output_shapes.values())
-        if hasattr(source_ds.output_shapes, "values")
-        else source_ds.output_shapes
+        list(source_ds_output_shapes.values())
+        if hasattr(source_ds_output_shapes, "values")
+        else source_ds_output_shapes
     )
+    target_ds_output_shapes = tf.compat.v1.data.get_output_shapes(target_ds)
     target_output_shapes = (
-        list(target_ds.output_shapes.values())
-        if hasattr(target_ds.output_shapes, "values")
-        else target_ds.output_shapes
+        list(target_ds_output_shapes.values())
+        if hasattr(target_ds_output_shapes, "values")
+        else target_ds_output_shapes
     )
+    source_ds_output_types = tf.compat.v1.data.get_output_types(source_ds)
     source_output_types = (
-        list(source_ds.output_types.values())
-        if hasattr(source_ds.output_types, "values")
-        else source_ds.output_types
+        list(source_ds_output_types.values())
+        if hasattr(source_ds_output_types, "values")
+        else source_ds_output_types
     )
+    target_ds_output_types = tf.compat.v1.data.get_output_types(target_ds)
     target_output_types = (
-        list(target_ds.output_types.values())
-        if hasattr(target_ds.output_types, "values")
-        else target_ds.output_types
+        list(target_ds_output_types.values())
+        if hasattr(target_ds_output_types, "values")
+        else target_ds_output_types
     )
 
     shapes = (
@@ -911,15 +922,17 @@ def da_pair_repeat_dataset(
                 mdl_outs[2]: [l, l],
             }
 
+    ds_output_shapes = tf.compat.v1.data.get_output_shapes(ds)
     output_shapes = (
-        list(ds.output_shapes.values())
-        if hasattr(ds.output_shapes, "values")
-        else ds.output_shapes
+        list(ds_output_shapes.values())
+        if hasattr(ds_output_shapes, "values")
+        else ds_output_shapes
     )
+    ds_output_types = tf.compat.v1.data.get_output_types(ds)
     output_types = (
-        list(ds.output_types.values())
-        if hasattr(ds.output_types, "values")
-        else ds.output_types
+        list(ds_output_types.values())
+        if hasattr(ds_output_types, "values")
+        else ds_output_types
     )
 
     shapes = (
