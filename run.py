@@ -191,7 +191,7 @@ def run(args):  # noqa: C901
             learning_rate=args.learning_rate,
             momentum=args.momentum,
             nesterov=True,
-            clipvalue=10,
+            clipvalue=1.0,
             decay=args.learning_rate_decay,
         ),
         "adam": lambda: keras.optimizers.Adam(
@@ -199,12 +199,12 @@ def run(args):  # noqa: C901
             beta_1=args.momentum,
             beta_2=0.999,
             amsgrad=False,
-            clipvalue=10,
+            clipvalue=1.0,
             decay=args.learning_rate_decay,
         ),
         "rmsprop": lambda: keras.optimizers.RMSprop(
             learning_rate=args.learning_rate,
-            clipvalue=10,
+            clipvalue=1.0,
             decay=args.learning_rate_decay,
         ),
     }[args.optimizer]()
@@ -336,7 +336,7 @@ def run(args):  # noqa: C901
 
     monitor = {
         **{k: "val_" for k in ["tune_source", "tune_target"]},
-        **{k: "val_preds_" for k in ["ccsa", "dsne", "dage", "dage_a", "multitask"]},
+        **{k: "val_preds_1_" for k in ["ccsa", "dsne", "dage", "dage_a", "multitask"]},
     }[args.method] + args.monitor
 
     fit_callbacks = callbacks(
