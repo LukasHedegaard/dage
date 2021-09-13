@@ -689,7 +689,7 @@ def visda_datasets(
     source = do.from_folder_class_data(source_data_path).named("s_data", "s_label")
     target = do.from_folder_class_data(target_data_path).named("t_data", "t_label")
 
-    num_source_per_class = 5000
+    num_source_per_class = 1000
     source_train = source.shuffle(seed).filter(
         s_label=do.allow_unique(num_source_per_class)
     )
