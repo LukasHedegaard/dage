@@ -31,7 +31,7 @@ def checkpoint(checkpoints_dir, monitor="loss", verbose=True):
 
 def reduce_lr(monitor="loss", verbose=True):
     return keras.callbacks.ReduceLROnPlateau(
-        monitor=monitor, factor=0.1, patience=7, min_lr=1e-6, verbose=verbose
+        monitor=monitor, factor=0.5, patience=3, min_lr=1e-8, verbose=verbose
     )
 
 

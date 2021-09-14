@@ -28,7 +28,7 @@ def run(args):  # noqa: C901
         print("Run arguments:")
         print(args)
 
-    if args.gpu_id:
+    if args.gpu_id.isnumeric():
         setup_gpu(args.gpu_id, args.verbose)
 
     seed = args.seed or np.random.randint(1000)
@@ -62,14 +62,13 @@ def run(args):  # noqa: C901
         "resnet50": lambda x: keras.applications.resnet.preprocess_input(x),
         **{
             k: lambda x: keras.applications.resnet_v2.preprocess_input(x)
-            for k in ["resnet50v2", "resnet101v2"]
+            for k in ["resnet50v2", "resnet101v2", "resnet152v2"]
         },
         "none": lambda x: x[features_config[args.features]["mat_key"]],
         **{k: lambda x: x for k in ["conv2", "lenetplus"]},
     }[args.model_base] or None
 
     if all([name in dsg.OFFICE_DATASET_NAMES for name in [args.source, args.target]]):
-        # office data
         INPUT_SHAPE = tuple(features_config[args.features]["shape"])
         CLASS_NAMES = dsg.office31_class_names()
         OUTPUT_SHAPE = len(CLASS_NAMES)
@@ -95,9 +94,18 @@ def run(args):  # noqa: C901
             input_shape=INPUT_SHAPE,
             standardize_input=args.standardize_input,
         )
+    elif all([name in dsg.VISDA_DATASET_NAMES for name in [args.source, args.target]]):
+        INPUT_SHAPE = tuple(features_config[args.features]["shape"])
+        CLASS_NAMES = dsg.visda_class_names()
+        OUTPUT_SHAPE = len(CLASS_NAMES)
+        ds = dsg.visda_datasets(
+            preprocess_input=preprocess_input,
+            shape=INPUT_SHAPE,
+            seed=seed,
+        )
     else:
         raise Exception(
-            "The source and target datasets should come from either Office31 or Digits"
+            "The source and target datasets should come from either Office31, Digits, or VisDA"
         )
 
     source_all_ds, source_all_size = ds["source"]["full"]
@@ -183,7 +191,7 @@ def run(args):  # noqa: C901
             learning_rate=args.learning_rate,
             momentum=args.momentum,
             nesterov=True,
-            clipvalue=10,
+            clipvalue=1.0,
             decay=args.learning_rate_decay,
         ),
         "adam": lambda: keras.optimizers.Adam(
@@ -191,12 +199,12 @@ def run(args):  # noqa: C901
             beta_1=args.momentum,
             beta_2=0.999,
             amsgrad=False,
-            clipvalue=10,
+            clipvalue=1.0,
             decay=args.learning_rate_decay,
         ),
         "rmsprop": lambda: keras.optimizers.RMSprop(
             learning_rate=args.learning_rate,
-            clipvalue=10,
+            clipvalue=1.0,
             decay=args.learning_rate_decay,
         ),
     }[args.optimizer]()
@@ -213,6 +221,9 @@ def run(args):  # noqa: C901
             input_shape=INPUT_SHAPE, include_top=False, weights="imagenet"
         ),
         "resnet101v2": lambda: keras.applications.resnet_v2.ResNet101V2(
+            input_shape=INPUT_SHAPE, include_top=False, weights="imagenet"
+        ),
+        "resnet152v2": lambda: keras.applications.resnet_v2.ResNet152V2(
             input_shape=INPUT_SHAPE, include_top=False, weights="imagenet"
         ),
         "conv2": lambda: models.common.conv2_block(
@@ -325,7 +336,7 @@ def run(args):  # noqa: C901
 
     monitor = {
         **{k: "val_" for k in ["tune_source", "tune_target"]},
-        **{k: "val_preds_" for k in ["ccsa", "dsne", "dage", "dage_a", "multitask"]},
+        **{k: "val_preds_1_" for k in ["ccsa", "dsne", "dage", "dage_a", "multitask"]},
     }[args.method] + args.monitor
 
     fit_callbacks = callbacks(
@@ -367,6 +378,7 @@ def run(args):  # noqa: C901
             batch_size=args.batch_size,
             callbacks=fit_callbacks,
             verbose=args.verbose,
+            triangular_learning_rate=False,
         )
         train_time = timer() - start_time
         if args.verbose:

@@ -319,7 +319,7 @@ def dage_loss(
         θϕLϕθ = tf.matmul(θϕ, tf.matmul(L, θϕ, transpose_b=True))
         θϕLpϕθ = tf.matmul(θϕ, tf.matmul(Lp, θϕ, transpose_b=True))
 
-        loss = tf.linalg.trace(θϕLϕθ) / tf.linalg.trace(θϕLpϕθ)
+        loss = tf.linalg.trace(θϕLϕθ) / (tf.linalg.trace(θϕLpϕθ) + 1e-11)
 
         return loss
 

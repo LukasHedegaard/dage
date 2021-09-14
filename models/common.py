@@ -239,7 +239,7 @@ def train(
     val_datasource=None,
     val_datasource_size=None,
     val_freq=1,
-    traingular_learning_rate=None,
+    triangular_learning_rate=None,
 ):
     validation_steps = (
         ceil(val_datasource_size / batch_size) if val_datasource_size else None
@@ -250,8 +250,8 @@ def train(
         val_datasource = None
         validation_steps = None
 
-    if traingular_learning_rate:
-        base_lr, max_lr = traingular_learning_rate / 4, traingular_learning_rate
+    if triangular_learning_rate:
+        base_lr, max_lr = triangular_learning_rate / 4, triangular_learning_rate
         cyc_lr = CyclicLR(
             base_lr=base_lr,
             max_lr=max_lr,
@@ -410,9 +410,11 @@ def recompile(model, architecture="single_stream"):
         }  # there seems to be an issue with K.get_value(model.metrics) in case of two-stream architectures
 
     model.compile(
-        loss=K.get_value(model.loss),
-        loss_weights=K.get_value(model.loss_weights),
-        optimizer=K.get_value(model.optimizer),
+        loss=K.get_value(model.loss) if hasattr(model, "loss") else None,
+        loss_weights=K.get_value(model.loss_weights)
+        if hasattr(model, "loss_weights")
+        else None,
+        optimizer=K.get_value(model.optimizer) if hasattr(model, "optimizer") else None,
         metrics=metric,
     )
 
@@ -449,6 +451,7 @@ def train_gradual_unfreeze(
         "resnet50": (20, 5),
         "resnet50v2": (20, 5),
         "resnet101v2": (24, 6),
+        "resnet152v2": (24, 6),
     }[model_base_name]
 
     if triangular_learning_rate:
