@@ -63,19 +63,19 @@ $ ./scripts/office31_hypersearch.sh
 The results come in two flavours. One set of results are for the traditional experimental setup, where the test split is used for validation. The other set are for a rectified experimental protocol, in which the test set is used only for final testing and a propper validation split is defined.
 
 <div align="center">
-  <img src="figures/office_results.png"><br>
+  <img src="figures/office_results.png", width=900><br>
 </div>
 
 ### Digits
 <div align="center">
-  <img src="figures/digits_results_1.png"><br>
+  <img src="figures/digits_results_1.png" width=900><br>
   
-  <img src="figures/digits_results_2.png"><br>
+  <img src="figures/digits_results_2.png" width=900><br>
 </div>
 
 ### VisDA-C
 <div align="center">
-  <img src="figures/visda-results.png" width=500><br>
+  <img src="figures/visda-results.png" width=450><br>
 </div>
 
 
