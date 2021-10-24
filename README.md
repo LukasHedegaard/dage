@@ -89,15 +89,15 @@ The results come in two flavours. One set of results are for the traditional exp
 ## Citation
 
 ```bibtex
-
 @article{hedegaard2021supervised,
+    author={Hedegaard, Lukas and Sheikh-Omar, Omar Ali and Iosifidis, Alexandros},
+    journal={IEEE Transactions on Image Processing}, 
     title={Supervised Domain Adaptation: A Graph Embedding Perspective and a Rectified Experimental Protocol}, 
-    author={Lukas Hedegaard and Omar Ali Sheikh-Omar and Alexandros Iosifidis},
     year={2021},
-    eprint={2004.11262},
-    archivePrefix={arXiv},
-    primaryClass={cs.LG},
-    journal={preprint, arXiv:2004.11262}
+    volume={30},
+    number={},
+    pages={8619-8631},
+    doi={10.1109/TIP.2021.3118978}
 }
 ```
 
